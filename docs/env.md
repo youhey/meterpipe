@@ -4,14 +4,17 @@ root `.env` は Docker Compose 用、`src/.env` は Laravel 用です。
 
 ## root `.env`
 
-- `METERPIPE_WEB_PORT`: nginx 公開 port
-- `METERPIPE_VITE_PORT`: Vite 公開 port
-- `METERPIPE_DB_PORT`: MySQL 公開 port
-- `METERPIPE_REDIS_PORT`: Valkey 公開 port
-- `MYSQL_DATABASE`
-- `MYSQL_USER`
-- `MYSQL_PASSWORD`
-- `MYSQL_ROOT_PASSWORD`
+- `DB_DATABASE`
+- `DB_USERNAME`
+- `DB_PASSWORD`
+- `DB_ROOT_PASSWORD`
+- `FORWARD_MYSQL_PORT`
+- `FORWARD_NGINX_PORT`
+- `FORWARD_VALKEY_PORT`
+- `FORWARD_MINIO_SERVICE_PORT`
+- `FORWARD_MINIO_CONSOLE_PORT`
+
+root `.env` は Docker Compose の port forwarding と middleware bootstrap values 用です。Laravel application settings は `src/.env` に置きます。
 
 ## `src/.env`
 
@@ -19,6 +22,7 @@ root `.env` は Docker Compose 用、`src/.env` は Laravel 用です。
 - `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
 - `CACHE_STORE`, `SESSION_DRIVER`, `QUEUE_CONNECTION`
 - `REDIS_HOST`, `REDIS_PORT`
+- `FILESYSTEM_DISK`, `AWS_ENDPOINT`, `AWS_BUCKET`, `AWS_USE_PATH_STYLE_ENDPOINT`
 - `METERPIPE_ADMIN_ALLOWED_EMAILS`
 - `METERPIPE_ADMIN_DEV_LOGIN_ENABLED`
 - `METERPIPE_ADMIN_DEV_LOGIN_EMAIL`
