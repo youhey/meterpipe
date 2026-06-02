@@ -4,11 +4,18 @@ Filament admin panel は `/admin` です。
 
 ## Auth
 
-Phase 1 では Filament 標準 login を使い、`METERPIPE_ADMIN_ALLOWED_EMAILS` の allow list で panel access を制御します。
+管理画面の認証は Google OAuth で制御します。未認証の `/admin` は `/admin/login` へ進み、`/admin/login` が Google OAuth へ redirect します。`METERPIPE_ADMIN_ALLOWED_EMAILS` の allow list に含まれる Google account だけが panel access できます。
 
 - public registration は有効化しません。
 - password reset は有効化しません。
 - allow list にない user は `/admin` へアクセスできません。
+
+```dotenv
+METERPIPE_ADMIN_ALLOWED_EMAILS=admin@example.test
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI="${APP_URL}/auth/google/callback"
+```
 
 ## Dev Login
 

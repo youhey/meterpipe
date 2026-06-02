@@ -84,6 +84,8 @@ GOOGLE_REDIRECT_URI="${APP_URL}/auth/google/callback"
 
 `METERPIPE_ADMIN_ALLOWED_EMAILS` is comma-separated. Matching is case-insensitive and trims whitespace. If the allow list is empty, no user can access the admin panel.
 
+Unauthenticated access to `/admin` reaches `/admin/login`, and `/admin/login` redirects to Google OAuth. The Google account email must be included in `METERPIPE_ADMIN_ALLOWED_EMAILS`.
+
 For local browser debugging, `GET /_local/admin/login` logs in the configured development user only when `APP_ENV` is `local` or `testing`, `METERPIPE_ADMIN_DEV_LOGIN_ENABLED=true`, and the dev email is also allow-listed.
 
 ## Cost Sync

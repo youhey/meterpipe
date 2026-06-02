@@ -14,6 +14,9 @@ class AdminAccessTest extends TestCase
     {
         $this->get('/admin')
             ->assertRedirect('/admin/login');
+
+        $this->get('/admin/login')
+            ->assertRedirect(route('auth.google.redirect'));
     }
 
     public function test_only_allowed_email_can_access_filament_panel(): void
