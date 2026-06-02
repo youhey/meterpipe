@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Admin\AdminAccess;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -22,10 +23,7 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        $allowedEmails = config('meterpipe.admin_allowed_emails', []);
-
-        return is_array($allowedEmails)
-            && in_array($this->email, $allowedEmails, true);
+        return app(AdminAccess::class)->isAllowedEmail($this->email);
     }
 
     /**

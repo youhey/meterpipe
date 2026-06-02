@@ -1,32 +1,13 @@
 <?php
 
-use App\Models\User;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
+use App\Http\Controllers\Auth\LocalAdminLoginController;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Str;
 
-Route::redirect('/', '/admin');
+Route::get('/', function () {
+    return response('Not Found', 404)
+        ->header('Content-Type', 'text/plain; charset=UTF-8')
+        ->header('Cache-Control', 'public, max-age=3600, s-maxage=86400');
+});
 
-Route::get('/admin/dev-login', function () {
-    abort_unless(
-        app()->environment(['local', 'testing']) && config('meterpipe.admin_dev_login_enabled'),
-        404,
-    );
-
-    $email = (string) config('meterpipe.admin_dev_login_email');
-
-    abort_if($email === '', 404);
-
-    $user = User::query()->firstOrCreate(
-        ['email' => $email],
-        [
-            'name' => 'Meterpipe Dev Admin',
-            'password' => Hash::make(Str::random(40)),
-        ],
-    );
-
-    Auth::login($user);
-
-    return redirect('/admin');
-})->name('admin.dev-login');
+Route::get('/_local/admin/login', LocalAdminLoginController::class)
+    ->name('local.admin.login');

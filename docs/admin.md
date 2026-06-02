@@ -12,7 +12,7 @@ Phase 1 では Filament 標準 login を使い、`METERPIPE_ADMIN_ALLOWED_EMAILS
 
 ## Dev Login
 
-local/testing だけ `/admin/dev-login` を使用できます。
+local/testing だけ `/_local/admin/login` を使用できます。
 
 ```dotenv
 METERPIPE_ADMIN_DEV_LOGIN_ENABLED=true
