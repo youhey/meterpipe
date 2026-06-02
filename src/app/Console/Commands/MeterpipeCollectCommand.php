@@ -105,11 +105,7 @@ class MeterpipeCollectCommand extends Command
                 foreach ($result->costDailySummaries as $row) {
                     CostDailySummary::query()->updateOrCreate(
                         [
-                            'source' => $row['source'],
-                            'pipe_app_id' => $row['pipe_app_id'],
-                            'service' => $row['service'],
-                            'date' => $row['date'],
-                            'dimensions_hash' => $row['dimensions_hash'],
+                            'summary_key' => $row['summary_key'],
                         ],
                         $row,
                     );

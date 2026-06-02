@@ -36,7 +36,8 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
-                \App\Filament\Widgets\CostSummaryWidget::class,
+                \App\Filament\Widgets\CostOverviewStats::class,
+                \App\Filament\Widgets\CostSyncStatusWidget::class,
                 \App\Filament\Widgets\CollectorHealthWidget::class,
             ])
             ->middleware([

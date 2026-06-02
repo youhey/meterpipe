@@ -3,11 +3,11 @@
 namespace App\Console\Commands;
 
 use App\Enums\CollectorRunStatus;
-use App\Enums\MetricSource;
 use App\Meterpipe\Collectors\Concerns\BuildsCollectorRows;
 use App\Models\AnalyticsEvent;
 use App\Models\CollectorRun;
 use App\Models\CostDailySummary;
+use App\Models\CostProvider;
 use App\Models\MetricSnapshot;
 use App\Models\PipeApp;
 use Carbon\CarbonImmutable;
@@ -36,8 +36,8 @@ class MeterpipeDemoSeedCommand extends Command
 
         for ($daysAgo = 29; $daysAgo >= 0; $daysAgo--) {
             $date = $now->subDays($daysAgo)->startOfDay();
-            $this->seedProviderCost(MetricSource::OpenAi->value, 'completions', 4.5 + ($daysAgo % 5), $date);
-            $this->seedProviderCost(MetricSource::LaravelCloud->value, 'compute', 7.0 + ($daysAgo % 3), $date);
+            $this->seedProviderCost(CostProvider::OPENAI, 'line_item', 'completions', 4.5 + ($daysAgo % 5), $date);
+            $this->seedProviderCost(CostProvider::LARAVEL_CLOUD, 'resource_type', 'compute', 7.0 + ($daysAgo % 3), $date);
 
             foreach (['digestpipe', 'radiopipe', 'voicepipe', 'playpipe'] as $index => $key) {
                 $app = $apps->get($key);
@@ -47,18 +47,26 @@ class MeterpipeDemoSeedCommand extends Command
                 }
 
                 $dimensions = ['demo' => true, 'app' => $key];
+                $summaryKey = $this->dimensionsHash($dimensions + [
+                    'provider_key' => CostProvider::ALL,
+                    'date' => $date->toDateString(),
+                ]);
+
                 CostDailySummary::query()->updateOrCreate(
                     [
-                        'source' => MetricSource::Manual->value,
-                        'pipe_app_id' => $app->id,
-                        'service' => 'app',
-                        'date' => $date,
-                        'dimensions_hash' => $this->dimensionsHash($dimensions),
+                        'summary_key' => $summaryKey,
                     ],
                     [
+                        'summary_date' => $date,
+                        'provider_key' => CostProvider::ALL,
+                        'pipe_app_key' => $app->key,
+                        'dimension_type' => 'pipe_app',
+                        'dimension_key' => $app->key,
+                        'dimension_label' => $app->name,
                         'amount' => 1.2 + ($index * 0.7) + ($daysAgo % 4),
                         'currency' => 'usd',
-                        'dimensions' => $dimensions,
+                        'record_count' => 1,
+                        'calculated_at' => $now,
                     ],
                 );
 
@@ -111,22 +119,31 @@ class MeterpipeDemoSeedCommand extends Command
         return self::SUCCESS;
     }
 
-    private function seedProviderCost(string $source, string $service, float $amount, CarbonImmutable $date): void
+    private function seedProviderCost(string $providerKey, string $dimensionType, string $dimensionKey, float $amount, CarbonImmutable $date): void
     {
         $dimensions = ['demo' => true];
+        $summaryKey = $this->dimensionsHash($dimensions + [
+            'provider_key' => $providerKey,
+            'dimension_type' => $dimensionType,
+            'dimension_key' => $dimensionKey,
+            'date' => $date->toDateString(),
+        ]);
 
         CostDailySummary::query()->updateOrCreate(
             [
-                'source' => $source,
-                'pipe_app_id' => null,
-                'service' => $service,
-                'date' => $date,
-                'dimensions_hash' => $this->dimensionsHash($dimensions),
+                'summary_key' => $summaryKey,
             ],
             [
+                'summary_date' => $date,
+                'provider_key' => $providerKey,
+                'pipe_app_key' => null,
+                'dimension_type' => $dimensionType,
+                'dimension_key' => $dimensionKey,
+                'dimension_label' => $dimensionKey,
                 'amount' => $amount,
                 'currency' => 'usd',
-                'dimensions' => $dimensions,
+                'record_count' => 1,
+                'calculated_at' => CarbonImmutable::now(),
             ],
         );
     }

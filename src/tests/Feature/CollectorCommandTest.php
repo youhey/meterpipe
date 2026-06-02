@@ -22,7 +22,7 @@ class CollectorCommandTest extends TestCase
             'status' => 'succeeded',
         ]);
 
-        $this->assertGreaterThan(0, CostDailySummary::query()->where('source', 'openai')->count());
+        $this->assertGreaterThan(0, CostDailySummary::query()->where('provider_key', 'openai')->count());
     }
 
     public function test_failing_collector_marks_run_as_failed(): void

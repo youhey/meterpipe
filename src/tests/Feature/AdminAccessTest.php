@@ -35,4 +35,16 @@ class AdminAccessTest extends TestCase
 
         $this->get('/admin/dev-login')->assertNotFound();
     }
+
+    public function test_cost_dashboard_can_render_without_cost_data(): void
+    {
+        config()->set('meterpipe.admin_allowed_emails', ['admin@example.test']);
+
+        $user = User::factory()->create(['email' => 'admin@example.test']);
+
+        $this->actingAs($user)
+            ->get('/admin/cost-dashboard')
+            ->assertOk()
+            ->assertSee('まだコストデータが同期されていません');
+    }
 }

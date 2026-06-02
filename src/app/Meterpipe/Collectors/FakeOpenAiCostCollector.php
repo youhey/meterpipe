@@ -2,8 +2,8 @@
 
 namespace App\Meterpipe\Collectors;
 
-use App\Enums\MetricSource;
 use App\Meterpipe\Collectors\Concerns\BuildsCollectorRows;
+use App\Models\CostProvider;
 
 final class FakeOpenAiCostCollector implements MetricCollector
 {
@@ -22,14 +22,17 @@ final class FakeOpenAiCostCollector implements MetricCollector
         foreach (['completions' => 4.25, 'audio' => 1.45, 'images' => 0.65] as $service => $amount) {
             $dimensions = ['model_family' => $service === 'audio' ? 'tts' : 'mixed'];
             $rows[] = [
-                'source' => MetricSource::OpenAi->value,
-                'pipe_app_id' => null,
-                'service' => $service,
+                'summary_date' => $date,
+                'provider_key' => CostProvider::OPENAI,
+                'pipe_app_key' => null,
+                'dimension_type' => 'line_item',
+                'dimension_key' => $service,
+                'dimension_label' => $service,
                 'amount' => $amount,
                 'currency' => 'usd',
-                'dimensions' => $dimensions,
-                'dimensions_hash' => $this->dimensionsHash($dimensions),
-                'date' => $date,
+                'record_count' => 1,
+                'calculated_at' => $context->now,
+                'summary_key' => $this->dimensionsHash($dimensions + ['date' => $date->toDateString()]),
             ];
         }
 

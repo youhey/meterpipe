@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\CostDailySummaries\Schemas;
 
-use Filament\Infolists\Components\KeyValueEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -15,14 +14,17 @@ class CostDailySummaryInfolist
             ->components([
                 Section::make('Cost daily summary')
                     ->schema([
-                        TextEntry::make('date')->date(),
-                        TextEntry::make('source')->badge(),
-                        TextEntry::make('pipeApp.key')->label('App'),
-                        TextEntry::make('service'),
+                        TextEntry::make('summary_date')->date(),
+                        TextEntry::make('provider_key')->badge(),
+                        TextEntry::make('pipe_app_key')->label('App')->badge(),
+                        TextEntry::make('dimension_type')->badge(),
+                        TextEntry::make('dimension_key')->copyable(),
+                        TextEntry::make('dimension_label'),
                         TextEntry::make('amount')->money('USD'),
                         TextEntry::make('currency')->badge(),
-                        TextEntry::make('dimensions_hash')->copyable(),
-                        KeyValueEntry::make('dimensions')->columnSpanFull(),
+                        TextEntry::make('record_count')->numeric(),
+                        TextEntry::make('calculated_at')->dateTime(),
+                        TextEntry::make('summary_key')->copyable()->columnSpanFull(),
                     ])
                     ->columns(2),
             ]);

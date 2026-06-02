@@ -12,19 +12,23 @@ return new class extends Migration {
     {
         Schema::create('cost_daily_summaries', function (Blueprint $table) {
             $table->id();
-            $table->string('source');
-            $table->foreignId('pipe_app_id')->nullable()->constrained()->nullOnDelete();
-            $table->string('service')->nullable();
+            $table->date('summary_date');
+            $table->string('provider_key');
+            $table->string('pipe_app_key')->nullable();
+            $table->string('dimension_type')->nullable();
+            $table->string('dimension_key')->nullable();
+            $table->string('dimension_label')->nullable();
             $table->decimal('amount', 20, 8);
             $table->string('currency')->default('usd');
-            $table->json('dimensions')->nullable();
-            $table->string('dimensions_hash', 64);
-            $table->date('date')->index();
+            $table->unsignedInteger('record_count')->default(0);
+            $table->timestamp('calculated_at');
+            $table->string('summary_key', 64);
             $table->timestamps();
 
-            $table->unique(['source', 'pipe_app_id', 'service', 'date', 'dimensions_hash'], 'cost_daily_unique');
-            $table->index(['source', 'date']);
-            $table->index(['pipe_app_id', 'date']);
+            $table->unique('summary_key', 'cost_daily_unique');
+            $table->index(['provider_key', 'summary_date']);
+            $table->index(['pipe_app_key', 'summary_date']);
+            $table->index(['dimension_type', 'dimension_key', 'summary_date'], 'cost_daily_dimension_idx');
         });
     }
 

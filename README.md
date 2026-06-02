@@ -2,7 +2,7 @@
 
 meterpipe は PipeKit 全体のコスト、使用量、collector 稼働状況、analytics event を確認するための Laravel + Filament ダッシュボードです。
 
-Phase 1 では本番外部 API 連携を実装せず、今後 OpenAI Admin API、Laravel Cloud usage、各 pipe アプリの analytics ingestion を追加するための DB、collector、管理 UI の土台を提供します。
+Phase 2 では OpenAI Organization Costs API と Laravel Cloud Usage API の cost sync、保存済みDBデータを読む Filament Cost Dashboard、手動同期 action、sync run 履歴、dimension mapping、budget 管理を提供します。
 
 ## 構成
 
@@ -56,6 +56,10 @@ php artisan meterpipe:collect --collector=fake-laravel-cloud-cost
 php artisan meterpipe:collect --all
 php artisan meterpipe:collect --all --dry-run
 php artisan meterpipe:demo:seed
+php artisan meterpipe:sync-costs --provider=all --days=30
+php artisan meterpipe:sync-openai-costs --from=2026-06-01 --to=2026-06-02 --sync
+php artisan meterpipe:sync-laravel-cloud-costs --from=2026-06-01 --to=2026-06-02 --sync
+php artisan meterpipe:recalculate-cost-summaries --from=2026-06-01 --to=2026-06-02
 ```
 
 ## Laravel Cloud
@@ -67,6 +71,7 @@ Composer project root は `src/` です。Laravel Cloud 側で root 検出が必
 - [architecture](docs/architecture.md)
 - [env](docs/env.md)
 - [collectors](docs/collectors.md)
+- [costs](docs/costs.md)
 - [metrics](docs/metrics.md)
 - [admin](docs/admin.md)
 - [operations](docs/operations.md)

@@ -2,28 +2,31 @@
 
 namespace App\Models;
 
-use App\Enums\MetricSource;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['source', 'pipe_app_id', 'service', 'amount', 'currency', 'dimensions', 'dimensions_hash', 'date'])]
+#[Fillable([
+    'summary_date',
+    'provider_key',
+    'pipe_app_key',
+    'dimension_type',
+    'dimension_key',
+    'dimension_label',
+    'amount',
+    'currency',
+    'record_count',
+    'calculated_at',
+    'summary_key',
+])]
 class CostDailySummary extends Model
 {
-    /** @return BelongsTo<PipeApp, $this> */
-    public function pipeApp(): BelongsTo
-    {
-        return $this->belongsTo(PipeApp::class);
-    }
-
     /** @return array<string, string> */
     protected function casts(): array
     {
         return [
-            'source' => MetricSource::class,
+            'summary_date' => 'immutable_date',
             'amount' => 'decimal:8',
-            'dimensions' => 'array',
-            'date' => 'immutable_date',
+            'calculated_at' => 'immutable_datetime',
         ];
     }
 }
