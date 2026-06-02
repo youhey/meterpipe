@@ -1,0 +1,32 @@
+# Environment
+
+root `.env` は Docker Compose 用、`src/.env` は Laravel 用です。
+
+## root `.env`
+
+- `METERPIPE_WEB_PORT`: nginx 公開 port
+- `METERPIPE_VITE_PORT`: Vite 公開 port
+- `METERPIPE_DB_PORT`: MySQL 公開 port
+- `METERPIPE_REDIS_PORT`: Valkey 公開 port
+- `MYSQL_DATABASE`
+- `MYSQL_USER`
+- `MYSQL_PASSWORD`
+- `MYSQL_ROOT_PASSWORD`
+
+## `src/.env`
+
+- `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_URL`
+- `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
+- `CACHE_STORE`, `SESSION_DRIVER`, `QUEUE_CONNECTION`
+- `REDIS_HOST`, `REDIS_PORT`
+- `METERPIPE_ADMIN_ALLOWED_EMAILS`
+- `METERPIPE_ADMIN_DEV_LOGIN_ENABLED`
+- `METERPIPE_ADMIN_DEV_LOGIN_EMAIL`
+- `OPENAI_ADMIN_KEY`
+- `LARAVEL_CLOUD_API_TOKEN`
+- `METERPIPE_DEFAULT_CURRENCY`
+- `METERPIPE_MONTHLY_BUDGET_AMOUNT`
+
+## Secret Handling
+
+`OPENAI_ADMIN_KEY`、`LARAVEL_CLOUD_API_TOKEN` などの secret はログ、DB、テスト出力に出しません。Phase 1 では secret を DB 保存しません。後続で保存が必要になった場合は Laravel encrypted cast を使います。

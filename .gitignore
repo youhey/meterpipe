@@ -1,0 +1,13 @@
+.DS_Store
+.env
+.idea
+.vscode
+src/.env
+src/.phpunit.result.cache
+src/database/database.sqlite
+src/node_modules
+src/public/build
+src/public/hot
+src/storage/*.key
+src/storage/pail
+src/vendor
