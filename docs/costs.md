@@ -22,7 +22,9 @@ Laravel Cloud:
 - resource type cost
 - add-on cost
 
-Laravel Cloud Usage API はレスポンス構造が変わる可能性があるため、normalizer は取得できる項目だけを正規化し、対象部分を `raw_payload` に保存します。
+Laravel Cloud Usage API は `GET /api/usage` を使い、`period` query で billing period を指定します。API response の金額は `current_spend_cents`、`total_cost_cents`、`total_cents` など cents 単位の値として返るため、normalizer で decimal currency amount に変換します。
+
+Laravel Cloud Usage API は billing period ベースです。meterpipe の `from` / `to` は sync run と再集計対象期間として保持しますが、Laravel Cloud API へは対象月から推定した `period` offset を送ります。
 
 ## Schema
 

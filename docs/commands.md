@@ -59,6 +59,8 @@ php artisan meterpipe:sync-laravel-cloud-costs --from=2026-06-01 --to=2026-06-02
 
 `--days` 未指定時は `LARAVEL_CLOUD_COST_SYNC_DAYS` を使います。
 
+Laravel Cloud Usage API は billing period ベースのため、`--from` / `--to` は sync run と再集計対象期間として使い、API には対象月から推定した `period` offset を送ります。
+
 ## Recalculate
 
 ### `meterpipe:recalculate-cost-summaries`

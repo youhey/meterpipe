@@ -97,25 +97,39 @@ class CostSyncCommandTest extends TestCase
 
         Http::fake([
             'cloud.laravel.com/*' => Http::response([
-                'currency' => 'usd',
                 'data' => [
-                    'summary' => ['current_spend' => 14.5],
-                    'applications' => [[
-                        'id' => 'app_digest',
-                        'name' => 'digestpipe',
-                        'cost' => 8.25,
-                    ]],
+                    'summary' => ['current_spend_cents' => 1450],
+                    'application_totals' => [
+                        'total_cost_cents' => 825,
+                        'applications' => [[
+                            'id' => 'app_digest',
+                            'name' => 'digestpipe',
+                            'total_cost_cents' => 825,
+                        ]],
+                    ],
                 ],
+                'meta' => ['currency' => 'USD', 'period' => 0],
             ]),
         ]);
 
         $this->artisan('meterpipe:sync-laravel-cloud-costs --from=2026-06-01 --to=2026-06-02 --sync')
             ->assertSuccessful();
 
+        Http::assertSent(function (Request $request): bool {
+            $query = $this->queryParams($request);
+
+            return ($query['period'] ?? null) === '0' && ! isset($query['from'], $query['to']);
+        });
+
         $this->assertGreaterThan(0, CostRecord::query()->where('provider_key', CostProviderKey::LaravelCloud->value)->count());
         $this->assertDatabaseHas('cost_sync_runs', [
             'provider_key' => CostProviderKey::LaravelCloud->value,
             'status' => CostSyncRun::SUCCEEDED,
+        ]);
+        $this->assertDatabaseHas('cost_daily_summaries', [
+            'provider_key' => CostProviderKey::LaravelCloud->value,
+            'dimension_type' => null,
+            'amount' => '14.50000000',
         ]);
     }
 

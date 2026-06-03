@@ -12,7 +12,7 @@ class LaravelCloudUsageNormalizer
     {
         $bucketStart = $from->utc()->startOfDay();
         $bucketEnd = $to->utc()->endOfDay();
-        $currency = strtolower((string) (data_get($payload, 'currency') ?? data_get($payload, 'data.currency') ?? config('meterpipe.default_currency', 'usd')));
+        $currency = strtolower((string) (data_get($payload, 'meta.currency') ?? data_get($payload, 'currency') ?? data_get($payload, 'data.currency') ?? config('meterpipe.default_currency', 'usd')));
         $records = [];
 
         $summaryAmount = $this->amount(data_get($payload, 'data.summary') ?? data_get($payload, 'summary') ?? $payload);
@@ -33,7 +33,15 @@ class LaravelCloudUsageNormalizer
             );
         }
 
+        $resourceRecords = 0;
+
         foreach ($this->resourceRows($payload) as $resource) {
+            $resourceAmount = $this->amount($resource);
+
+            if ($resourceAmount === null) {
+                continue;
+            }
+
             $records[] = $this->record(
                 $bucketStart,
                 $bucketEnd,
@@ -43,11 +51,32 @@ class LaravelCloudUsageNormalizer
                 $this->label($resource),
                 $this->resourceType($resource),
                 $this->label($resource),
-                $this->amount($resource) ?? '0.00000000',
+                $resourceAmount,
                 $currency,
                 $resource,
             );
+            $resourceRecords++;
         }
+
+        $resourceTotalAmount = $this->amount(data_get($payload, 'data.resources') ?? data_get($payload, 'resources') ?? []);
+
+        if ($resourceRecords === 0 && $resourceTotalAmount !== null) {
+            $records[] = $this->record(
+                $bucketStart,
+                $bucketEnd,
+                'resource',
+                null,
+                null,
+                'resources',
+                'resources',
+                'resources',
+                $resourceTotalAmount,
+                $currency,
+                data_get($payload, 'data.resources') ?? data_get($payload, 'resources') ?? [],
+            );
+        }
+
+        $applicationRecords = 0;
 
         foreach ($this->applicationRows($payload) as $application) {
             $applicationId = $this->id($application);
@@ -67,42 +96,80 @@ class LaravelCloudUsageNormalizer
                     $currency,
                     $application,
                 );
-            }
-
-            $environments = data_get($application, 'environments', []);
-
-            if (! is_array($environments)) {
-                continue;
-            }
-
-            foreach ($environments as $environment) {
-                if (! is_array($environment)) {
-                    continue;
-                }
-
-                $environmentAmount = $this->amount($environment);
-
-                if ($environmentAmount === null) {
-                    continue;
-                }
-
-                $records[] = $this->record(
-                    $bucketStart,
-                    $bucketEnd,
-                    'environment',
-                    $applicationId,
-                    $this->id($environment),
-                    $this->label($environment),
-                    'compute',
-                    $this->label($environment),
-                    $environmentAmount,
-                    $currency,
-                    $environment,
-                );
+                $applicationRecords++;
             }
         }
 
+        $applicationTotalAmount = $this->amount(data_get($payload, 'data.application_totals') ?? []);
+
+        if ($applicationRecords === 0 && $applicationTotalAmount !== null) {
+            $records[] = $this->record(
+                $bucketStart,
+                $bucketEnd,
+                'application',
+                null,
+                null,
+                'applications',
+                'compute',
+                'applications',
+                $applicationTotalAmount,
+                $currency,
+                data_get($payload, 'data.application_totals') ?? [],
+            );
+        }
+
+        $environmentRecords = 0;
+
+        foreach ($this->environmentRows($payload) as $environment) {
+            $environmentAmount = $this->amount($environment);
+
+            if ($environmentAmount === null) {
+                continue;
+            }
+
+            $records[] = $this->record(
+                $bucketStart,
+                $bucketEnd,
+                'environment',
+                $this->applicationId($environment),
+                $this->id($environment),
+                $this->label($environment),
+                'compute',
+                $this->label($environment),
+                $environmentAmount,
+                $currency,
+                $environment,
+            );
+            $environmentRecords++;
+        }
+
+        $environmentTotalAmount = $this->amount(data_get($payload, 'data.environment_usage') ?? []);
+
+        if ($environmentRecords === 0 && $environmentTotalAmount !== null) {
+            $records[] = $this->record(
+                $bucketStart,
+                $bucketEnd,
+                'environment',
+                null,
+                null,
+                'environments',
+                'compute',
+                'environments',
+                $environmentTotalAmount,
+                $currency,
+                data_get($payload, 'data.environment_usage') ?? [],
+            );
+        }
+
+        $addonRecords = 0;
+
         foreach ($this->addonRows($payload) as $addon) {
+            $addonAmount = $this->amount($addon);
+
+            if ($addonAmount === null) {
+                continue;
+            }
+
             $records[] = $this->record(
                 $bucketStart,
                 $bucketEnd,
@@ -112,9 +179,28 @@ class LaravelCloudUsageNormalizer
                 $this->label($addon),
                 'add_on',
                 $this->label($addon),
-                $this->amount($addon) ?? '0.00000000',
+                $addonAmount,
                 $currency,
                 $addon,
+            );
+            $addonRecords++;
+        }
+
+        $addonTotalAmount = $this->amount(data_get($payload, 'data.addons') ?? data_get($payload, 'addons') ?? []);
+
+        if ($addonRecords === 0 && $addonTotalAmount !== null) {
+            $records[] = $this->record(
+                $bucketStart,
+                $bucketEnd,
+                'add_on',
+                null,
+                null,
+                'add_ons',
+                'add_on',
+                'add_ons',
+                $addonTotalAmount,
+                $currency,
+                data_get($payload, 'data.addons') ?? data_get($payload, 'addons') ?? [],
             );
         }
 
@@ -152,15 +238,47 @@ class LaravelCloudUsageNormalizer
     /** @return list<array<string, mixed>> */
     private function applicationRows(array $payload): array
     {
-        $applications = data_get($payload, 'data.applications') ?? data_get($payload, 'applications') ?? [];
+        $applications = data_get($payload, 'data.application_totals.applications') ?? data_get($payload, 'data.applications') ?? data_get($payload, 'applications') ?? [];
 
         return is_array($applications) ? array_values(array_filter($applications, 'is_array')) : [];
     }
 
     /** @return list<array<string, mixed>> */
+    private function environmentRows(array $payload): array
+    {
+        $rows = data_get($payload, 'data.environment_usage.items') ?? data_get($payload, 'environment_usage.items') ?? [];
+
+        if (is_array($rows) && $rows !== []) {
+            return array_values(array_filter($rows, 'is_array'));
+        }
+
+        $environments = [];
+
+        foreach ($this->applicationRows($payload) as $application) {
+            $applicationId = $this->id($application);
+            $items = data_get($application, 'environments', []);
+
+            if (! is_array($items)) {
+                continue;
+            }
+
+            foreach ($items as $environment) {
+                if (! is_array($environment)) {
+                    continue;
+                }
+
+                $environment['application_id'] ??= $applicationId;
+                $environments[] = $environment;
+            }
+        }
+
+        return $environments;
+    }
+
+    /** @return list<array<string, mixed>> */
     private function addonRows(array $payload): array
     {
-        $addons = data_get($payload, 'data.add_ons') ?? data_get($payload, 'data.addons') ?? data_get($payload, 'add_ons') ?? data_get($payload, 'addons') ?? [];
+        $addons = data_get($payload, 'data.addons.items') ?? data_get($payload, 'addons.items') ?? data_get($payload, 'data.add_ons') ?? data_get($payload, 'data.addons') ?? data_get($payload, 'add_ons') ?? data_get($payload, 'addons') ?? [];
 
         return is_array($addons) ? array_values(array_filter($addons, 'is_array')) : [];
     }
@@ -239,12 +357,29 @@ class LaravelCloudUsageNormalizer
             ?? data_get($row, 'total_cost')
             ?? data_get($row, 'estimated_cost');
 
-        return is_numeric($value) ? number_format((float) $value, 8, '.', '') : null;
+        if (is_numeric($value)) {
+            return number_format((float) $value, 8, '.', '');
+        }
+
+        $cents = data_get($row, 'current_spend_cents')
+            ?? data_get($row, 'total_cost_cents')
+            ?? data_get($row, 'total_cents')
+            ?? data_get($row, 'cost_cents')
+            ?? data_get($row, 'used_cents');
+
+        return is_numeric($cents) ? number_format((float) $cents / 100, 8, '.', '') : null;
     }
 
     private function id(array $row): ?string
     {
         $id = data_get($row, 'id') ?? data_get($row, 'uuid') ?? data_get($row, 'identifier');
+
+        return is_scalar($id) && (string) $id !== '' ? (string) $id : null;
+    }
+
+    private function applicationId(array $row): ?string
+    {
+        $id = data_get($row, 'application_id') ?? data_get($row, 'application.id') ?? data_get($row, 'app_id');
 
         return is_scalar($id) && (string) $id !== '' ? (string) $id : null;
     }

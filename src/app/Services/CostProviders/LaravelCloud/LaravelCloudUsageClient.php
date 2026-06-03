@@ -28,8 +28,7 @@ class LaravelCloudUsageClient
             ->timeout(20)
             ->retry(3, 500)
             ->get($this->baseUrl . '/usage', [
-                'from' => $from->utc()->toDateString(),
-                'to' => $to->utc()->toDateString(),
+                'period' => $this->periodOffset($from, $to),
             ]);
 
         if (! $response->successful()) {
@@ -43,5 +42,13 @@ class LaravelCloudUsageClient
         }
 
         return $payload;
+    }
+
+    private function periodOffset(CarbonImmutable $from, CarbonImmutable $to): int
+    {
+        $currentMonth = CarbonImmutable::now('UTC')->startOfMonth();
+        $targetMonth = $to->greaterThan($from) ? $to->utc()->startOfMonth() : $from->utc()->startOfMonth();
+
+        return min(3, max(0, $targetMonth->diffInMonths($currentMonth, false)));
     }
 }
