@@ -3,10 +3,15 @@
 namespace Tests\Feature;
 
 use App\Enums\CostProviderKey;
+use App\Enums\IntegrationProvider;
+use App\Enums\PipeAppStatus;
+use App\Models\AppIntegration;
 use App\Models\CostDailySummary;
 use App\Models\CostRecord;
 use App\Models\CostSyncRun;
+use App\Models\PipeApp;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -19,33 +24,69 @@ class CostSyncCommandTest extends TestCase
     {
         Config::set('meterpipe.openai_admin_key', 'test-openai-token');
         Config::set(CostProviderKey::OpenAi->enabledConfigPath(), true);
+        $this->createOpenAiProjectIntegration();
 
-        Http::fake([
-            'api.openai.com/*' => Http::response([
+        Http::fake(function (Request $request) {
+            $query = $this->queryParams($request);
+            $groupBy = $query['group_by'] ?? null;
+            $result = [
+                'amount' => ['value' => 4.25, 'currency' => 'usd'],
+            ];
+
+            if ($groupBy === 'project_id') {
+                $result['project_id'] = 'proj_pipekit';
+            }
+
+            if ($groupBy === 'line_item') {
+                $result['line_item'] = 'responses';
+            }
+
+            return Http::response([
                 'has_more' => false,
                 'data' => [[
                     'start_time' => 1_780_272_000,
                     'end_time' => 1_780_358_400,
-                    'results' => [[
-                        'amount' => ['value' => 4.25, 'currency' => 'usd'],
-                        'project_id' => 'proj_digest',
-                        'api_key_id' => 'key_abc',
-                        'line_item' => 'responses',
-                    ]],
+                    'results' => [$result],
                 ]],
-            ]),
-        ]);
+            ]);
+        });
 
         $this->artisan('meterpipe:sync-openai-costs --from=2026-06-01 --to=2026-06-02 --sync')
             ->assertSuccessful();
 
-        $this->assertGreaterThan(0, CostRecord::query()->where('provider_key', CostProviderKey::OpenAi->value)->count());
+        Http::assertSentCount(3);
+        Http::assertSent(function (Request $request): bool {
+            $query = $this->queryParams($request);
+
+            return in_array('proj_pipekit', (array) ($query['project_ids'] ?? []), true);
+        });
+
+        $this->assertSame(3, CostRecord::query()->where('provider_key', CostProviderKey::OpenAi->value)->count());
         $this->assertDatabaseHas('cost_sync_runs', [
             'provider_key' => CostProviderKey::OpenAi->value,
             'status' => CostSyncRun::SUCCEEDED,
         ]);
         $this->assertDatabaseHas('cost_daily_summaries', [
             'provider_key' => CostProviderKey::All->value,
+            'dimension_type' => null,
+            'amount' => '4.25000000',
+        ]);
+        $this->assertDatabaseHas('cost_daily_summaries', [
+            'provider_key' => CostProviderKey::OpenAi->value,
+            'dimension_type' => null,
+            'amount' => '4.25000000',
+        ]);
+        $this->assertDatabaseHas('cost_daily_summaries', [
+            'provider_key' => CostProviderKey::OpenAi->value,
+            'dimension_type' => 'project',
+            'dimension_key' => 'proj_pipekit',
+            'amount' => '4.25000000',
+        ]);
+        $this->assertDatabaseHas('cost_daily_summaries', [
+            'provider_key' => CostProviderKey::OpenAi->value,
+            'dimension_type' => 'line_item',
+            'dimension_key' => 'responses',
+            'amount' => '4.25000000',
         ]);
     }
 
@@ -82,6 +123,7 @@ class CostSyncCommandTest extends TestCase
     {
         Config::set('meterpipe.openai_admin_key', 'test-openai-token');
         Config::set(CostProviderKey::OpenAi->enabledConfigPath(), true);
+        $this->createOpenAiProjectIntegration();
 
         Http::fake([
             'api.openai.com/*' => Http::response(['error' => 'denied'], 403),
@@ -94,6 +136,59 @@ class CostSyncCommandTest extends TestCase
             'provider_key' => CostProviderKey::OpenAi->value,
             'status' => CostSyncRun::FAILED,
             'error_class' => 'Illuminate\\Http\\Client\\RequestException',
+        ]);
+    }
+
+    public function test_sync_openai_costs_skips_without_enabled_project_integrations(): void
+    {
+        Config::set('meterpipe.openai_admin_key', 'test-openai-token');
+        Config::set(CostProviderKey::OpenAi->enabledConfigPath(), true);
+
+        Http::fake();
+
+        $this->artisan('meterpipe:sync-openai-costs --from=2026-06-01 --to=2026-06-02 --sync')
+            ->assertSuccessful();
+
+        Http::assertNothingSent();
+        $this->assertDatabaseHas('cost_sync_runs', [
+            'provider_key' => CostProviderKey::OpenAi->value,
+            'status' => CostSyncRun::SKIPPED,
+        ]);
+    }
+
+    public function test_shared_openai_project_is_not_assigned_to_one_pipe_app(): void
+    {
+        Config::set('meterpipe.openai_admin_key', 'test-openai-token');
+        Config::set(CostProviderKey::OpenAi->enabledConfigPath(), true);
+        $this->createOpenAiProjectIntegration('proj_pipekit', 'digestpipe');
+        $this->createOpenAiProjectIntegration('proj_pipekit', 'radiopipe');
+
+        Http::fake([
+            'api.openai.com/*' => Http::response([
+                'has_more' => false,
+                'data' => [[
+                    'start_time' => 1_780_272_000,
+                    'end_time' => 1_780_358_400,
+                    'results' => [[
+                        'amount' => ['value' => 4.25, 'currency' => 'usd'],
+                        'project_id' => 'proj_pipekit',
+                    ]],
+                ]],
+            ]),
+        ]);
+
+        $this->artisan('meterpipe:sync-openai-costs --from=2026-06-01 --to=2026-06-02 --sync')
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('cost_records', [
+            'provider_key' => CostProviderKey::OpenAi->value,
+            'source_dimension_type' => 'project',
+            'external_project_id' => 'proj_pipekit',
+            'pipe_app_key' => null,
+        ]);
+        $this->assertDatabaseMissing('cost_daily_summaries', [
+            'provider_key' => CostProviderKey::OpenAi->value,
+            'dimension_type' => 'pipe_app',
         ]);
     }
 
@@ -122,6 +217,7 @@ class CostSyncCommandTest extends TestCase
             'bucket_date' => '2026-06-01',
             'amount' => '7.50000000',
             'currency' => 'usd',
+            'source_dimension_type' => 'total',
             'line_item' => 'responses',
             'raw_payload' => ['fixture' => true],
             'synced_at' => '2026-06-02 00:00:00',
@@ -135,5 +231,32 @@ class CostSyncCommandTest extends TestCase
             'provider_key' => CostProviderKey::OpenAi->value,
             'amount' => '7.50000000',
         ]);
+    }
+
+    private function createOpenAiProjectIntegration(string $projectId = 'proj_pipekit', string $appKey = 'digestpipe'): void
+    {
+        $pipeApp = PipeApp::query()->updateOrCreate(
+            ['key' => $appKey],
+            [
+                'name' => $appKey,
+                'status' => PipeAppStatus::Active->value,
+            ],
+        );
+
+        AppIntegration::query()->create([
+            'pipe_app_id' => $pipeApp->id,
+            'provider' => IntegrationProvider::OpenAi->value,
+            'provider_project_id' => $projectId,
+            'label' => 'Project',
+            'enabled' => true,
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function queryParams(Request $request): array
+    {
+        parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+        return $query;
     }
 }

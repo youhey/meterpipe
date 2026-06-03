@@ -3,8 +3,10 @@
 namespace App\Services\Costs;
 
 use App\Enums\CostProviderKey;
+use App\Enums\IntegrationProvider;
 use App\Jobs\SyncLaravelCloudCostsJob;
 use App\Jobs\SyncOpenAiCostsJob;
+use App\Models\AppIntegration;
 use App\Models\CostDimensionMapping;
 use App\Models\CostRecord;
 use App\Models\CostSyncRun;
@@ -80,15 +82,23 @@ class CostSyncService
                 return $this->skipRun($run, 'OpenAI provider is disabled.');
             }
 
-            return $this->executeRun($run, $from, $to, function () use ($from, $to): array {
+            $projectIds = $this->openAiProjectIds();
+
+            if ($projectIds === []) {
+                return $this->skipRun($run, 'No enabled OpenAI project integrations are configured.');
+            }
+
+            $projectAppKeys = $this->openAiProjectAppKeys();
+
+            return $this->executeRun($run, $from, $to, function () use ($from, $to, $projectIds, $projectAppKeys): array {
                 $records = [];
 
-                foreach ([null, 'project_id', 'api_key_id', 'line_item'] as $groupBy) {
-                    $pages = $this->openAiClient->fetchCosts($from, $to, $groupBy);
+                foreach ([null, 'project_id', 'line_item'] as $groupBy) {
+                    $pages = $this->openAiClient->fetchCosts($from, $to, $groupBy, $projectIds);
                     $records = array_merge($records, $this->openAiNormalizer->normalize($pages, $groupBy));
                 }
 
-                return $records;
+                return $this->applyOpenAiProjectAppKeys($records, $projectAppKeys);
             });
         });
     }
@@ -180,6 +190,70 @@ class CostSyncService
         }
 
         return (bool) config($provider->enabledConfigPath(), false);
+    }
+
+    /** @return list<string> */
+    private function openAiProjectIds(): array
+    {
+        return AppIntegration::query()
+            ->where('provider', IntegrationProvider::OpenAi->value)
+            ->where('enabled', true)
+            ->whereNotNull('provider_project_id')
+            ->pluck('provider_project_id')
+            ->map(fn(mixed $projectId): string => trim((string) $projectId))
+            ->filter(fn(string $projectId): bool => $projectId !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /** @return array<string, string> */
+    private function openAiProjectAppKeys(): array
+    {
+        $integrations = AppIntegration::query()
+            ->with('pipeApp')
+            ->where('provider', IntegrationProvider::OpenAi->value)
+            ->where('enabled', true)
+            ->whereNotNull('provider_project_id')
+            ->get();
+
+        $projectAppKeys = [];
+
+        foreach ($integrations->groupBy(fn(AppIntegration $integration): string => trim((string) $integration->provider_project_id)) as $projectId => $group) {
+            if (! is_string($projectId) || $projectId === '') {
+                continue;
+            }
+
+            $appKeys = $group
+                ->map(fn(AppIntegration $integration): ?string => $integration->pipeApp?->key)
+                ->filter(fn(?string $appKey): bool => is_string($appKey) && $appKey !== '')
+                ->unique()
+                ->values();
+
+            if ($appKeys->count() === 1) {
+                $projectAppKeys[$projectId] = (string) $appKeys->first();
+            }
+        }
+
+        return $projectAppKeys;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $records
+     * @param array<string, string> $projectAppKeys
+     * @return list<array<string, mixed>>
+     */
+    private function applyOpenAiProjectAppKeys(array $records, array $projectAppKeys): array
+    {
+        return array_map(function (array $record) use ($projectAppKeys): array {
+            $projectId = $record['external_project_id'] ?? null;
+
+            if (is_string($projectId) && isset($projectAppKeys[$projectId])) {
+                $record['pipe_app_key'] = $record['pipe_app_key'] ?? $projectAppKeys[$projectId];
+            }
+
+            return $record;
+        }, $records);
     }
 
     private function skipRun(CostSyncRun $run, string $reason): CostSyncRun
@@ -286,6 +360,7 @@ class CostSyncService
                 'amount',
                 'currency',
                 'pipe_app_key',
+                'source_dimension_type',
                 'external_project_id',
                 'external_api_key_id',
                 'external_application_id',

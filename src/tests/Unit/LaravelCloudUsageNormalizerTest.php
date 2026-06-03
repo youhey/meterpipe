@@ -37,6 +37,7 @@ class LaravelCloudUsageNormalizerTest extends TestCase
 
         $this->assertGreaterThanOrEqual(4, count($records));
         $this->assertSame(CostProviderKey::LaravelCloud->value, $records[0]['provider_key']);
+        $this->assertSame('total', $records[0]['source_dimension_type']);
         $this->assertContains('app_digest', array_column($records, 'external_application_id'));
         $this->assertContains('database', array_column($records, 'resource_type'));
     }

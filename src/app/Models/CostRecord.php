@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
     'amount',
     'currency',
     'pipe_app_key',
+    'source_dimension_type',
     'external_project_id',
     'external_api_key_id',
     'external_application_id',

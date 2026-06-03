@@ -14,8 +14,11 @@ class OpenAiCostClient
     ) {
     }
 
-    /** @return list<array<string, mixed>> */
-    public function fetchCosts(CarbonImmutable $from, CarbonImmutable $to, ?string $groupBy = null): array
+    /**
+     * @param list<string> $projectIds
+     * @return list<array<string, mixed>>
+     */
+    public function fetchCosts(CarbonImmutable $from, CarbonImmutable $to, ?string $groupBy = null, array $projectIds = []): array
     {
         $token = $this->token ?? config('meterpipe.openai_admin_key');
 
@@ -32,6 +35,10 @@ class OpenAiCostClient
 
         if ($groupBy !== null) {
             $params['group_by'] = $groupBy;
+        }
+
+        if ($projectIds !== []) {
+            $params['project_ids'] = $projectIds;
         }
 
         $pages = [];

@@ -10,8 +10,9 @@ OpenAI:
 
 - daily total cost
 - `project_id` group
-- `api_key_id` group
 - `line_item` group
+
+OpenAI cost sync は、`App Integrations` に登録された有効な `provider=openai` / `provider_project_id` を取得対象 Project として使います。登録がない場合は Organization 全体の cost を取得せず、sync run を `skipped` にします。
 
 Laravel Cloud:
 
@@ -35,6 +36,8 @@ provider の定義と有効/無効は `config/meterpipe.php` の `cost_providers
 
 金額は `decimal(20, 8)` で保存します。`source_record_key` は provider、bucket 期間、dimension から作成し、同じ期間を再同期しても二重保存しません。
 
+`cost_records.source_dimension_type` は、外部 API から取得した行の粒度を表します。Dashboard の総額や provider 別総額は `total` 粒度だけを合算し、`project` や `line_item` の内訳行を総額に混ぜません。
+
 ## Dashboard
 
 `/admin/cost-dashboard` で以下を確認できます。
@@ -55,14 +58,17 @@ provider の定義と有効/無効は `config/meterpipe.php` の `cost_providers
 
 ## App Mapping
 
-`Cost Dimension Mappings` で外部 ID を PipeKit app に紐づけます。
+OpenAI の同期対象 Project は `App Integrations` で管理します。`provider=openai`、`enabled=true`、`provider_project_id` が設定された行だけが OpenAI Costs API の Project filter に使われます。
+
+同じ OpenAI Project が複数の Pipe App に紐づく場合、その Project の cost は同期対象にはなりますが、特定の Pipe App へ自動配賦しません。このケースでは OpenAI Costs API の Project 粒度だけでは digestpipe と radiopipe のような複数アプリ間で cost を分割できないためです。
+
+`Cost Dimension Mappings` は、外部 ID の表示名や Laravel Cloud などの dimension を PipeKit app に紐づける補助的な mapping として使います。
 
 例:
 
 | provider_key | dimension_type | external_id | display_name | pipe_app_key |
 |---|---|---|---|---|
 | openai | project | proj_xxx | digestpipe | digestpipe |
-| openai | api_key | key_xxx | radiopipe key | radiopipe |
 | laravel_cloud | application | app_xxx | voicepipe | voicepipe |
 | laravel_cloud | environment | env_xxx | production | voicepipe |
 

@@ -35,16 +35,21 @@ class CostSummaryRecalculator
 
         $now = CarbonImmutable::now('UTC');
         $rows = [];
+        $totalRecords = $records->where('source_dimension_type', 'total');
 
-        foreach ($this->groupRecords($records, ['bucket_date', 'currency']) as $group) {
+        foreach ($this->groupRecords($totalRecords, ['bucket_date', 'currency']) as $group) {
             $rows[] = $this->summaryRow($group, CostProviderKey::All->value, null, null, null, null, $now);
         }
 
-        foreach ($this->groupRecords($records, ['bucket_date', 'provider_key', 'currency']) as $group) {
+        foreach ($this->groupRecords($totalRecords, ['bucket_date', 'provider_key', 'currency']) as $group) {
             $rows[] = $this->summaryRow($group, $group->first()->provider_key, null, null, null, null, $now);
         }
 
-        foreach ($this->groupRecords($records->whereNotNull('pipe_app_key'), ['bucket_date', 'provider_key', 'pipe_app_key', 'currency']) as $group) {
+        $appRecords = $records
+            ->whereNotNull('pipe_app_key')
+            ->filter(fn(CostRecord $record): bool => in_array((string) $record->source_dimension_type, ['project', 'application'], true));
+
+        foreach ($this->groupRecords($appRecords, ['bucket_date', 'provider_key', 'pipe_app_key', 'currency']) as $group) {
             $pipeAppKey = $group->first()->pipe_app_key;
             $rows[] = $this->summaryRow($group, $group->first()->provider_key, $pipeAppKey, 'pipe_app', $pipeAppKey, $pipeAppKey, $now);
         }

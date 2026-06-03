@@ -62,6 +62,7 @@ class OpenAiCostNormalizer
                         'amount' => $this->stringDecimal($amount),
                         'currency' => strtolower((string) $currency),
                         'pipe_app_key' => null,
+                        'source_dimension_type' => $dimensionType,
                         'external_project_id' => $projectId,
                         'external_api_key_id' => $apiKeyId,
                         'external_application_id' => null,
@@ -123,19 +124,21 @@ class OpenAiCostNormalizer
 
     private function dimensionType(?string $groupBy, ?string $projectId, ?string $apiKeyId, ?string $lineItem): string
     {
-        if ($groupBy === 'project_id' || $projectId !== null) {
-            return 'project';
+        if ($groupBy === null) {
+            return 'total';
         }
 
-        if ($groupBy === 'api_key_id' || $apiKeyId !== null) {
-            return 'api_key';
-        }
-
-        if ($groupBy === 'line_item' || $lineItem !== null) {
-            return 'line_item';
-        }
-
-        return 'total';
+        return match ($groupBy) {
+            'project_id' => 'project',
+            'api_key_id' => 'api_key',
+            'line_item' => 'line_item',
+            default => match (true) {
+                $projectId !== null => 'project',
+                $apiKeyId !== null => 'api_key',
+                $lineItem !== null => 'line_item',
+                default => 'total',
+            },
+        };
     }
 
     private function stringDecimal(mixed $value): string

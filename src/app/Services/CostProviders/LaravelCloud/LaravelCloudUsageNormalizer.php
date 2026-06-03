@@ -199,6 +199,7 @@ class LaravelCloudUsageNormalizer
             'amount' => $amount,
             'currency' => strtolower($currency),
             'pipe_app_key' => null,
+            'source_dimension_type' => $this->sourceDimensionType($dimensionType),
             'external_project_id' => null,
             'external_api_key_id' => null,
             'external_application_id' => $applicationId,
@@ -210,6 +211,14 @@ class LaravelCloudUsageNormalizer
             'unit' => $this->unit($rawPayload),
             'raw_payload' => $rawPayload,
         ];
+    }
+
+    private function sourceDimensionType(string $dimensionType): string
+    {
+        return match ($dimensionType) {
+            'organization' => 'total',
+            default => $dimensionType,
+        };
     }
 
     private function amount(mixed $row): ?string

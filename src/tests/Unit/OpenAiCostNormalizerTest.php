@@ -26,6 +26,7 @@ class OpenAiCostNormalizerTest extends TestCase
         $this->assertCount(1, $records);
         $this->assertSame(CostProviderKey::OpenAi->value, $records[0]['provider_key']);
         $this->assertSame('proj_digest', $records[0]['external_project_id']);
+        $this->assertSame('project', $records[0]['source_dimension_type']);
         $this->assertSame('12.34500000', $records[0]['amount']);
         $this->assertSame($records[0]['source_record_key'], app(OpenAiCostNormalizer::class)->normalize([[
             'data' => [[
