@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Enums\CostProviderKey;
+use App\Enums\IntegrationProvider;
+use App\Models\AppIntegration;
 use App\Models\CostDailySummary;
 use App\Models\CostRecord;
 use App\Models\CostSyncRun;
@@ -245,20 +247,69 @@ class CostSummaryService
             return ['labels' => [], 'values' => []];
         }
 
-        $rows = DB::table('cost_records')
+        $query = DB::table('cost_records')
             ->selectRaw($field . ' as dimension_key, sum(amount) as total')
             ->where('provider_key', CostProviderKey::LaravelCloud->value)
             ->whereNotNull($field)
             ->whereDate('bucket_start', '<=', $now->endOfMonth()->toDateString())
             ->whereDate('bucket_end', '>=', $now->startOfMonth()->toDateString())
             ->groupBy($field)
-            ->orderByDesc('total')
-            ->limit(12)
-            ->get();
+            ->orderByDesc('total');
+
+        $rows = $dimensionType === 'application'
+            ? $query->get()
+            : $query->limit(12)->get();
+
+        if ($dimensionType === 'application') {
+            return $this->laravelCloudApplicationBreakdown($rows);
+        }
 
         return [
             'labels' => $rows->map(fn(object $record): string => (string) ($record->dimension_key ?? 'Unmapped'))->values()->all(),
             'values' => $rows->map(fn(object $record): float => (float) $record->total)->values()->all(),
+        ];
+    }
+
+    /**
+     * @param Collection<int, \stdClass> $rows
+     *
+     * @return array{labels: list<string>, values: list<float>}
+     */
+    private function laravelCloudApplicationBreakdown(Collection $rows): array
+    {
+        $applicationIds = $rows
+            ->map(fn(object $record): ?string => $record->dimension_key !== null ? (string) $record->dimension_key : null)
+            ->filter()
+            ->values()
+            ->all();
+
+        $labels = AppIntegration::query()
+            ->with('pipeApp:id,key,name')
+            ->where('provider', IntegrationProvider::LaravelCloud->value)
+            ->where('enabled', true)
+            ->whereNotNull('provider_resource_id')
+            ->whereIn('provider_resource_id', $applicationIds)
+            ->get()
+            ->mapWithKeys(fn(AppIntegration $integration): array => [
+                (string) $integration->provider_resource_id => (string) ($integration->pipeApp->name ?? $integration->pipeApp->key ?? $integration->provider_resource_id),
+            ]);
+
+        $totals = [];
+
+        foreach ($rows as $record) {
+            $dimensionKey = $record->dimension_key !== null ? (string) $record->dimension_key : 'Unmapped';
+            $label = (string) ($labels->get($dimensionKey) ?? $dimensionKey);
+
+            $totals[$label] = ($totals[$label] ?? 0.0) + (float) $record->total;
+        }
+
+        arsort($totals);
+
+        $totals = array_slice($totals, 0, 12, true);
+
+        return [
+            'labels' => array_keys($totals),
+            'values' => array_values($totals),
         ];
     }
 }

@@ -3,8 +3,12 @@
 namespace Tests\Unit;
 
 use App\Enums\CostProviderKey;
+use App\Enums\IntegrationProvider;
+use App\Enums\PipeAppStatus;
+use App\Models\AppIntegration;
 use App\Models\CostDailySummary;
 use App\Models\CostRecord;
+use App\Models\PipeApp;
 use App\Services\CostSummaryService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -89,5 +93,57 @@ class CostSummaryServiceTest extends TestCase
         ], $summary['laravel_cloud_billing_period']);
         $this->assertSame(0.0, $summary['yesterday_cost']);
         $this->assertSame(35.0, $summary['month_end_forecast']);
+    }
+
+    public function test_laravel_cloud_application_breakdown_resolves_pipe_app_names_from_app_integrations(): void
+    {
+        $now = CarbonImmutable::parse('2026-06-10 12:00:00');
+        $digestpipe = PipeApp::query()->create([
+            'key' => 'digestpipe',
+            'name' => 'digestpipe',
+            'status' => PipeAppStatus::Active->value,
+        ]);
+
+        AppIntegration::query()->create([
+            'pipe_app_id' => $digestpipe->id,
+            'provider' => IntegrationProvider::LaravelCloud->value,
+            'provider_resource_id' => 'app-digestpipe',
+            'label' => 'Application',
+            'enabled' => true,
+        ]);
+
+        CostRecord::query()->create([
+            'provider_key' => CostProviderKey::LaravelCloud->value,
+            'source_record_key' => 'laravel_cloud:application:digestpipe',
+            'bucket_start' => '2026-05-25 00:00:00',
+            'bucket_end' => '2026-06-24 23:59:59',
+            'bucket_date' => '2026-05-25',
+            'amount' => '4.50000000',
+            'currency' => 'usd',
+            'external_application_id' => 'app-digestpipe',
+            'source_dimension_type' => 'application',
+            'raw_payload' => ['fixture' => true],
+            'synced_at' => $now,
+        ]);
+
+        CostRecord::query()->create([
+            'provider_key' => CostProviderKey::LaravelCloud->value,
+            'source_record_key' => 'laravel_cloud:application:unmapped',
+            'bucket_start' => '2026-05-25 00:00:00',
+            'bucket_end' => '2026-06-24 23:59:59',
+            'bucket_date' => '2026-05-25',
+            'amount' => '2.00000000',
+            'currency' => 'usd',
+            'external_application_id' => 'app-unmapped',
+            'source_dimension_type' => 'application',
+            'raw_payload' => ['fixture' => true],
+            'synced_at' => $now,
+        ]);
+
+        $breakdown = app(CostSummaryService::class)
+            ->dimensionBreakdown(CostProviderKey::LaravelCloud->value, 'application', $now);
+
+        $this->assertSame(['digestpipe', 'app-unmapped'], $breakdown['labels']);
+        $this->assertSame([4.5, 2.0], $breakdown['values']);
     }
 }
