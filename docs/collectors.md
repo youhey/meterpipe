@@ -169,12 +169,18 @@ php artisan meterpipe:recalculate-cost-summaries --from=2026-06-01 --to=2026-06-
 
 ## Scheduler
 
-`routes/console.php` で hourly cost sync を登録しています。
+`routes/console.php` で `Asia/Tokyo` の 08:30 / 18:00 に cost sync を登録しています。
 
 ```php
-Schedule::command('meterpipe:sync-costs --days=7')
-    ->hourly()
-    ->withoutOverlapping();
+$command = 'meterpipe:sync-costs --days=7';
+
+foreach (['08:30', '18:00'] as $time) {
+    Schedule::command($command)
+        ->dailyAt($time)
+        ->timezone('Asia/Tokyo')
+        ->name("meterpipe:sync-costs:{$time}")
+        ->withoutOverlapping(30);
+}
 ```
 
 現時点では `meterpipe:collect` の scheduler は登録していません。

@@ -29,12 +29,18 @@ php artisan meterpipe:sync-costs --provider=laravel_cloud --days=7
 | `--sync` | Queue Job を使わず同一 process で実行 |
 | `--force` | disabled provider も実行 |
 
-`routes/console.php` では hourly sync として登録しています。
+`routes/console.php` では `Asia/Tokyo` の 08:30 / 18:00 に daily sync として登録しています。
 
 ```php
-Schedule::command('meterpipe:sync-costs --days=7')
-    ->hourly()
-    ->withoutOverlapping();
+$command = 'meterpipe:sync-costs --days=7';
+
+foreach (['08:30', '18:00'] as $time) {
+    Schedule::command($command)
+        ->dailyAt($time)
+        ->timezone('Asia/Tokyo')
+        ->name("meterpipe:sync-costs:{$time}")
+        ->withoutOverlapping(30);
+}
 ```
 
 ### `meterpipe:sync-openai-costs`
@@ -160,7 +166,7 @@ Laravel scheduler を実行します。
 php artisan schedule:run
 ```
 
-meterpipe では `meterpipe:sync-costs --days=7` が hourly で登録されています。
+meterpipe では `meterpipe:sync-costs --days=7` が `Asia/Tokyo` の 08:30 / 18:00 に登録されています。
 
 ## Makefile Wrappers
 

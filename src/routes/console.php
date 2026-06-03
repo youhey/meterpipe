@@ -8,6 +8,12 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('meterpipe:sync-costs --days=7')
-    ->hourly()
-    ->withoutOverlapping();
+$command = 'meterpipe:sync-costs --days=7';
+
+foreach (['08:30', '18:00'] as $time) {
+    Schedule::command($command)
+        ->dailyAt($time)
+        ->timezone('Asia/Tokyo')
+        ->name("meterpipe:sync-costs:{$time}")
+        ->withoutOverlapping(30);
+}
