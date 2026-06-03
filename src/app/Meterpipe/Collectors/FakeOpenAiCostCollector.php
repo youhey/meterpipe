@@ -2,8 +2,8 @@
 
 namespace App\Meterpipe\Collectors;
 
+use App\Enums\CostProviderKey;
 use App\Meterpipe\Collectors\Concerns\BuildsCollectorRows;
-use App\Models\CostProvider;
 
 final class FakeOpenAiCostCollector implements MetricCollector
 {
@@ -23,7 +23,7 @@ final class FakeOpenAiCostCollector implements MetricCollector
             $dimensions = ['model_family' => $service === 'audio' ? 'tts' : 'mixed'];
             $rows[] = [
                 'summary_date' => $date,
-                'provider_key' => CostProvider::OPENAI,
+                'provider_key' => CostProviderKey::OpenAi->value,
                 'pipe_app_key' => null,
                 'dimension_type' => 'line_item',
                 'dimension_key' => $service,

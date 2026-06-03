@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Enums\CostProviderKey;
 use App\Models\CostDailySummary;
-use App\Models\CostProvider;
 use App\Models\CostRecord;
 use App\Models\CostSyncRun;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,7 +18,7 @@ class CostSyncCommandTest extends TestCase
     public function test_sync_openai_costs_command_persists_cost_records(): void
     {
         Config::set('meterpipe.openai_admin_key', 'test-openai-token');
-        CostProvider::query()->create(['key' => CostProvider::OPENAI, 'name' => 'OpenAI', 'is_enabled' => true]);
+        Config::set(CostProviderKey::OpenAi->enabledConfigPath(), true);
 
         Http::fake([
             'api.openai.com/*' => Http::response([
@@ -39,20 +39,20 @@ class CostSyncCommandTest extends TestCase
         $this->artisan('meterpipe:sync-openai-costs --from=2026-06-01 --to=2026-06-02 --sync')
             ->assertSuccessful();
 
-        $this->assertGreaterThan(0, CostRecord::query()->where('provider_key', CostProvider::OPENAI)->count());
+        $this->assertGreaterThan(0, CostRecord::query()->where('provider_key', CostProviderKey::OpenAi->value)->count());
         $this->assertDatabaseHas('cost_sync_runs', [
-            'provider_key' => CostProvider::OPENAI,
+            'provider_key' => CostProviderKey::OpenAi->value,
             'status' => CostSyncRun::SUCCEEDED,
         ]);
         $this->assertDatabaseHas('cost_daily_summaries', [
-            'provider_key' => CostProvider::ALL,
+            'provider_key' => CostProviderKey::All->value,
         ]);
     }
 
     public function test_sync_laravel_cloud_costs_command_persists_cost_records(): void
     {
         Config::set('meterpipe.laravel_cloud_api_token', 'test-cloud-token');
-        CostProvider::query()->create(['key' => CostProvider::LARAVEL_CLOUD, 'name' => 'Laravel Cloud', 'is_enabled' => true]);
+        Config::set(CostProviderKey::LaravelCloud->enabledConfigPath(), true);
 
         Http::fake([
             'cloud.laravel.com/*' => Http::response([
@@ -71,9 +71,9 @@ class CostSyncCommandTest extends TestCase
         $this->artisan('meterpipe:sync-laravel-cloud-costs --from=2026-06-01 --to=2026-06-02 --sync')
             ->assertSuccessful();
 
-        $this->assertGreaterThan(0, CostRecord::query()->where('provider_key', CostProvider::LARAVEL_CLOUD)->count());
+        $this->assertGreaterThan(0, CostRecord::query()->where('provider_key', CostProviderKey::LaravelCloud->value)->count());
         $this->assertDatabaseHas('cost_sync_runs', [
-            'provider_key' => CostProvider::LARAVEL_CLOUD,
+            'provider_key' => CostProviderKey::LaravelCloud->value,
             'status' => CostSyncRun::SUCCEEDED,
         ]);
     }
@@ -81,7 +81,7 @@ class CostSyncCommandTest extends TestCase
     public function test_sync_failure_is_recorded(): void
     {
         Config::set('meterpipe.openai_admin_key', 'test-openai-token');
-        CostProvider::query()->create(['key' => CostProvider::OPENAI, 'name' => 'OpenAI', 'is_enabled' => true]);
+        Config::set(CostProviderKey::OpenAi->enabledConfigPath(), true);
 
         Http::fake([
             'api.openai.com/*' => Http::response(['error' => 'denied'], 403),
@@ -91,16 +91,31 @@ class CostSyncCommandTest extends TestCase
             ->assertFailed();
 
         $this->assertDatabaseHas('cost_sync_runs', [
-            'provider_key' => CostProvider::OPENAI,
+            'provider_key' => CostProviderKey::OpenAi->value,
             'status' => CostSyncRun::FAILED,
             'error_class' => 'Illuminate\\Http\\Client\\RequestException',
         ]);
     }
 
+    public function test_sync_disabled_provider_is_skipped_from_config(): void
+    {
+        Config::set('meterpipe.openai_admin_key', 'test-openai-token');
+        Config::set(CostProviderKey::OpenAi->enabledConfigPath(), false);
+
+        $this->artisan('meterpipe:sync-openai-costs --from=2026-06-01 --to=2026-06-02 --sync')
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('cost_sync_runs', [
+            'provider_key' => CostProviderKey::OpenAi->value,
+            'status' => CostSyncRun::SKIPPED,
+        ]);
+        $this->assertSame(0, CostRecord::query()->where('provider_key', CostProviderKey::OpenAi->value)->count());
+    }
+
     public function test_recalculate_command_recreates_daily_summaries(): void
     {
         CostRecord::query()->create([
-            'provider_key' => CostProvider::OPENAI,
+            'provider_key' => CostProviderKey::OpenAi->value,
             'source_record_key' => 'openai:test',
             'bucket_start' => '2026-06-01 00:00:00',
             'bucket_end' => '2026-06-02 00:00:00',
@@ -117,7 +132,7 @@ class CostSyncCommandTest extends TestCase
 
         $this->assertGreaterThan(0, CostDailySummary::query()->count());
         $this->assertDatabaseHas('cost_daily_summaries', [
-            'provider_key' => CostProvider::OPENAI,
+            'provider_key' => CostProviderKey::OpenAi->value,
             'amount' => '7.50000000',
         ]);
     }

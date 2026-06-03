@@ -157,7 +157,7 @@ Automated tests must not call real external APIs. OpenAI Admin API、Laravel Clo
 
 ## Cost Sync Constraints
 
-- `cost_providers.settings` に secret を保存しません。
+- provider の有効/無効は `config/meterpipe.php` で管理し、DB に provider 定義や secret を保存しません。
 - `OPENAI_ADMIN_KEY` と `LARAVEL_CLOUD_API_TOKEN` は `.env` だけで管理します。
 - sync は Queue Job / Artisan Command から実行します。
 - widget の `getData()` / `getStats()` から外部 API を呼びません。

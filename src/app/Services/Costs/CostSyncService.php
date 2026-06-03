@@ -2,10 +2,10 @@
 
 namespace App\Services\Costs;
 
+use App\Enums\CostProviderKey;
 use App\Jobs\SyncLaravelCloudCostsJob;
 use App\Jobs\SyncOpenAiCostsJob;
 use App\Models\CostDimensionMapping;
-use App\Models\CostProvider;
 use App\Models\CostRecord;
 use App\Models\CostSyncRun;
 use App\Services\CostProviders\LaravelCloud\LaravelCloudUsageClient;
@@ -29,7 +29,7 @@ class CostSyncService
 
     public function queueOpenAi(CarbonImmutable $from, CarbonImmutable $to, string $scope = 'manual', bool $force = false): CostSyncRun
     {
-        $run = $this->createRun(CostProvider::OPENAI, $from, $to, $scope, $force);
+        $run = $this->createRun(CostProviderKey::OpenAi->value, $from, $to, $scope, $force);
 
         if ($run->status === CostSyncRun::QUEUED) {
             SyncOpenAiCostsJob::dispatch($run->id, $from, $to, $force)
@@ -41,7 +41,7 @@ class CostSyncService
 
     public function queueLaravelCloud(CarbonImmutable $from, CarbonImmutable $to, string $scope = 'manual', bool $force = false): CostSyncRun
     {
-        $run = $this->createRun(CostProvider::LARAVEL_CLOUD, $from, $to, $scope, $force);
+        $run = $this->createRun(CostProviderKey::LaravelCloud->value, $from, $to, $scope, $force);
 
         if ($run->status === CostSyncRun::QUEUED) {
             SyncLaravelCloudCostsJob::dispatch($run->id, $from, $to, $force)
@@ -53,7 +53,7 @@ class CostSyncService
 
     public function syncOpenAi(CarbonImmutable $from, CarbonImmutable $to, string $scope = 'manual', bool $force = false): CostSyncRun
     {
-        $run = $this->createRun(CostProvider::OPENAI, $from, $to, $scope, $force);
+        $run = $this->createRun(CostProviderKey::OpenAi->value, $from, $to, $scope, $force);
 
         if ($run->status !== CostSyncRun::QUEUED) {
             return $run;
@@ -64,7 +64,7 @@ class CostSyncService
 
     public function syncLaravelCloud(CarbonImmutable $from, CarbonImmutable $to, string $scope = 'manual', bool $force = false): CostSyncRun
     {
-        $run = $this->createRun(CostProvider::LARAVEL_CLOUD, $from, $to, $scope, $force);
+        $run = $this->createRun(CostProviderKey::LaravelCloud->value, $from, $to, $scope, $force);
 
         if ($run->status !== CostSyncRun::QUEUED) {
             return $run;
@@ -75,8 +75,8 @@ class CostSyncService
 
     public function executeOpenAi(int $runId, CarbonImmutable $from, CarbonImmutable $to, bool $force = false): CostSyncRun
     {
-        return $this->withProviderLock(CostProvider::OPENAI, $from, $to, $runId, function (CostSyncRun $run) use ($from, $to, $force): CostSyncRun {
-            if (! $this->providerEnabled(CostProvider::OPENAI, $force)) {
+        return $this->withProviderLock(CostProviderKey::OpenAi->value, $from, $to, $runId, function (CostSyncRun $run) use ($from, $to, $force): CostSyncRun {
+            if (! $this->providerEnabled(CostProviderKey::OpenAi->value, $force)) {
                 return $this->skipRun($run, 'OpenAI provider is disabled.');
             }
 
@@ -95,8 +95,8 @@ class CostSyncService
 
     public function executeLaravelCloud(int $runId, CarbonImmutable $from, CarbonImmutable $to, bool $force = false): CostSyncRun
     {
-        return $this->withProviderLock(CostProvider::LARAVEL_CLOUD, $from, $to, $runId, function (CostSyncRun $run) use ($from, $to, $force): CostSyncRun {
-            if (! $this->providerEnabled(CostProvider::LARAVEL_CLOUD, $force)) {
+        return $this->withProviderLock(CostProviderKey::LaravelCloud->value, $from, $to, $runId, function (CostSyncRun $run) use ($from, $to, $force): CostSyncRun {
+            if (! $this->providerEnabled(CostProviderKey::LaravelCloud->value, $force)) {
                 return $this->skipRun($run, 'Laravel Cloud provider is disabled.');
             }
 
@@ -147,10 +147,6 @@ class CostSyncService
             $saved = $this->upsertRecords($records);
             $this->recalculator->recalculate($from, $to);
 
-            CostProvider::query()
-                ->where('key', $run->provider_key)
-                ->update(['last_synced_at' => CarbonImmutable::now('UTC')]);
-
             $run->update([
                 'status' => CostSyncRun::SUCCEEDED,
                 'finished_at' => CarbonImmutable::now('UTC'),
@@ -177,15 +173,13 @@ class CostSyncService
             return true;
         }
 
-        $provider = CostProvider::query()->firstOrCreate(
-            ['key' => $providerKey],
-            [
-                'name' => $providerKey === CostProvider::OPENAI ? 'OpenAI' : 'Laravel Cloud',
-                'is_enabled' => false,
-            ],
-        );
+        $provider = CostProviderKey::tryFrom($providerKey);
 
-        return (bool) $provider->is_enabled;
+        if (! $provider instanceof CostProviderKey || $provider === CostProviderKey::All) {
+            return false;
+        }
+
+        return (bool) config($provider->enabledConfigPath(), false);
     }
 
     private function skipRun(CostSyncRun $run, string $reason): CostSyncRun

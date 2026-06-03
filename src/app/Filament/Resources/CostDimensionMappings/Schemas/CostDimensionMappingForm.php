@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\CostDimensionMappings\Schemas;
 
-use App\Models\CostProvider;
+use App\Enums\CostProviderKey;
 use App\Models\PipeApp;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -22,8 +22,8 @@ class CostDimensionMappingForm
                         Select::make('provider_key')
                             ->required()
                             ->options([
-                                CostProvider::OPENAI => 'openai',
-                                CostProvider::LARAVEL_CLOUD => 'laravel_cloud',
+                                CostProviderKey::OpenAi->value => 'openai',
+                                CostProviderKey::LaravelCloud->value => 'laravel_cloud',
                             ]),
                         Select::make('dimension_type')
                             ->required()

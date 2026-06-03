@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\CostSyncRuns\Tables;
 
-use App\Models\CostProvider;
+use App\Enums\CostProviderKey;
 use App\Models\CostSyncRun;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
@@ -27,8 +27,8 @@ class CostSyncRunsTable
             ->filters([
                 SelectFilter::make('provider_key')
                     ->options([
-                        CostProvider::OPENAI => 'openai',
-                        CostProvider::LARAVEL_CLOUD => 'laravel_cloud',
+                        CostProviderKey::OpenAi->value => 'openai',
+                        CostProviderKey::LaravelCloud->value => 'laravel_cloud',
                     ]),
                 SelectFilter::make('status')
                     ->options([

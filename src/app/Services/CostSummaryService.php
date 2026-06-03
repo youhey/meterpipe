@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\CostProviderKey;
 use App\Models\CostDailySummary;
-use App\Models\CostProvider;
 use App\Models\CostSyncRun;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -20,14 +20,14 @@ class CostSummaryService
         $yesterday = $now->subDay()->toDateString();
 
         $monthToDate = (float) CostDailySummary::query()
-            ->where('provider_key', CostProvider::ALL)
+            ->where('provider_key', CostProviderKey::All->value)
             ->whereNull('dimension_type')
             ->whereDate('summary_date', '>=', $start)
             ->whereDate('summary_date', '<=', $today)
             ->sum('amount');
 
         $yesterdayCost = (float) CostDailySummary::query()
-            ->where('provider_key', CostProvider::ALL)
+            ->where('provider_key', CostProviderKey::All->value)
             ->whereNull('dimension_type')
             ->whereDate('summary_date', $yesterday)
             ->sum('amount');
@@ -38,13 +38,15 @@ class CostSummaryService
         return [
             'currency' => config('meterpipe.default_currency', 'usd'),
             'month_to_date' => $monthToDate,
-            'openai_month_to_date' => $this->providerMonthToDate(CostProvider::OPENAI, $start, $today),
-            'laravel_cloud_month_to_date' => $this->providerMonthToDate(CostProvider::LARAVEL_CLOUD, $start, $today),
+            'openai_month_to_date' => $this->providerMonthToDate(CostProviderKey::OpenAi->value, $start, $today),
+            'laravel_cloud_month_to_date' => $this->providerMonthToDate(CostProviderKey::LaravelCloud->value, $start, $today),
             'yesterday_cost' => $yesterdayCost,
             'month_end_forecast' => $monthToDate / $elapsedDays * $daysInMonth,
             'provider_breakdown' => $this->providerBreakdown($start, $today),
             'app_breakdown' => $this->appBreakdown($start, $today),
-            'last_synced_at' => CostProvider::query()->whereNotNull('last_synced_at')->max('last_synced_at'),
+            'last_synced_at' => CostSyncRun::query()
+                ->where('status', CostSyncRun::SUCCEEDED)
+                ->max('finished_at'),
         ];
     }
 
@@ -54,7 +56,7 @@ class CostSummaryService
         $now = CarbonImmutable::now();
         $start = $now->subDays($days - 1)->startOfDay();
         $totals = CostDailySummary::query()
-            ->where('provider_key', CostProvider::ALL)
+            ->where('provider_key', CostProviderKey::All->value)
             ->whereNull('dimension_type')
             ->whereDate('summary_date', '>=', $start->toDateString())
             ->orderBy('summary_date')
@@ -70,7 +72,7 @@ class CostSummaryService
         $now = CarbonImmutable::now();
         $start = $now->subDays($days - 1)->startOfDay();
         $rows = CostDailySummary::query()
-            ->whereIn('provider_key', [CostProvider::OPENAI, CostProvider::LARAVEL_CLOUD])
+            ->whereIn('provider_key', [CostProviderKey::OpenAi->value, CostProviderKey::LaravelCloud->value])
             ->whereNull('dimension_type')
             ->whereDate('summary_date', '>=', $start->toDateString())
             ->get()
@@ -82,8 +84,8 @@ class CostSummaryService
 
         return [
             'labels' => $series['labels'],
-            'openai' => array_map(fn(string $date): float => (float) $rows->get(CostProvider::OPENAI . ':' . $date, 0), $this->dateLabels($start, $days)),
-            'laravel_cloud' => array_map(fn(string $date): float => (float) $rows->get(CostProvider::LARAVEL_CLOUD . ':' . $date, 0), $this->dateLabels($start, $days)),
+            'openai' => array_map(fn(string $date): float => (float) $rows->get(CostProviderKey::OpenAi->value . ':' . $date, 0), $this->dateLabels($start, $days)),
+            'laravel_cloud' => array_map(fn(string $date): float => (float) $rows->get(CostProviderKey::LaravelCloud->value . ':' . $date, 0), $this->dateLabels($start, $days)),
         ];
     }
 
@@ -139,7 +141,7 @@ class CostSummaryService
     {
         return CostDailySummary::query()
             ->selectRaw('provider_key, sum(amount) as total')
-            ->whereIn('provider_key', [CostProvider::OPENAI, CostProvider::LARAVEL_CLOUD])
+            ->whereIn('provider_key', [CostProviderKey::OpenAi->value, CostProviderKey::LaravelCloud->value])
             ->whereNull('dimension_type')
             ->whereDate('summary_date', '>=', $start)
             ->whereDate('summary_date', '<=', $today)

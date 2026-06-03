@@ -2,7 +2,7 @@
 
 namespace App\Services\CostProviders\OpenAi;
 
-use App\Models\CostProvider;
+use App\Enums\CostProviderKey;
 use Carbon\CarbonImmutable;
 
 class OpenAiCostNormalizer
@@ -46,7 +46,7 @@ class OpenAiCostNormalizer
                     $dimensionType = $this->dimensionType($groupBy, $projectId, $apiKeyId, $lineItem);
 
                     $records[] = [
-                        'provider_key' => CostProvider::OPENAI,
+                        'provider_key' => CostProviderKey::OpenAi->value,
                         'source_record_key' => $this->sourceRecordKey(
                             $bucketStart,
                             $bucketEnd,
@@ -94,7 +94,7 @@ class OpenAiCostNormalizer
         string $currency,
     ): string {
         return implode(':', [
-            CostProvider::OPENAI,
+            CostProviderKey::OpenAi->value,
             $bucketStart->timestamp,
             $bucketEnd->timestamp,
             $dimensionType,

@@ -29,8 +29,10 @@ root `.env` は Docker Compose の port forwarding と middleware bootstrap valu
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `GOOGLE_REDIRECT_URI`
+- `METERPIPE_OPENAI_COLLECTOR_ENABLED`
 - `OPENAI_ADMIN_KEY`
 - `OPENAI_COST_SYNC_DAYS`
+- `METERPIPE_LARAVEL_CLOUD_COLLECTOR_ENABLED`
 - `LARAVEL_CLOUD_API_TOKEN`
 - `LARAVEL_CLOUD_COST_SYNC_DAYS`
 - `METERPIPE_DEFAULT_CURRENCY`
@@ -53,4 +55,4 @@ root `.env` は Docker Compose の port forwarding と middleware bootstrap valu
 
 ## Secret Handling
 
-`OPENAI_ADMIN_KEY`、`LARAVEL_CLOUD_API_TOKEN` などの secret はログ、DB、テスト出力に出しません。Cost Provider の `settings` は非secret設定だけに使います。後続で保存が必要になった場合は Laravel encrypted cast を使います。
+`OPENAI_ADMIN_KEY`、`LARAVEL_CLOUD_API_TOKEN` などの secret はログ、DB、テスト出力に出しません。provider の定義と有効/無効は `config/meterpipe.php` で管理し、DB には保存しません。

@@ -2,9 +2,9 @@
 
 namespace App\Services\Costs;
 
+use App\Enums\CostProviderKey;
 use App\Models\CostDailySummary;
 use App\Models\CostDimensionMapping;
-use App\Models\CostProvider;
 use App\Models\CostRecord;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -17,8 +17,8 @@ class CostSummaryRecalculator
             ->whereDate('summary_date', '>=', $from->toDateString())
             ->whereDate('summary_date', '<=', $to->toDateString());
 
-        if ($providerKey !== null && $providerKey !== CostProvider::ALL) {
-            $query->whereIn('provider_key', [$providerKey, CostProvider::ALL]);
+        if ($providerKey !== null && $providerKey !== CostProviderKey::All->value) {
+            $query->whereIn('provider_key', [$providerKey, CostProviderKey::All->value]);
         }
 
         $query->delete();
@@ -26,7 +26,7 @@ class CostSummaryRecalculator
         $records = CostRecord::query()
             ->whereDate('bucket_date', '>=', $from->toDateString())
             ->whereDate('bucket_date', '<=', $to->toDateString())
-            ->when($providerKey !== null && $providerKey !== CostProvider::ALL, fn($query) => $query->where('provider_key', $providerKey))
+            ->when($providerKey !== null && $providerKey !== CostProviderKey::All->value, fn($query) => $query->where('provider_key', $providerKey))
             ->get();
 
         if ($records->isEmpty()) {
@@ -37,7 +37,7 @@ class CostSummaryRecalculator
         $rows = [];
 
         foreach ($this->groupRecords($records, ['bucket_date', 'currency']) as $group) {
-            $rows[] = $this->summaryRow($group, CostProvider::ALL, null, null, null, null, $now);
+            $rows[] = $this->summaryRow($group, CostProviderKey::All->value, null, null, null, null, $now);
         }
 
         foreach ($this->groupRecords($records, ['bucket_date', 'provider_key', 'currency']) as $group) {
@@ -130,12 +130,12 @@ class CostSummaryRecalculator
             ->keyBy(fn(CostDimensionMapping $mapping): string => $mapping->provider_key . ':' . $mapping->dimension_type . ':' . $mapping->external_id);
 
         $dimensionFields = [
-            CostProvider::OPENAI => [
+            CostProviderKey::OpenAi->value => [
                 'project' => 'external_project_id',
                 'api_key' => 'external_api_key_id',
                 'line_item' => 'line_item',
             ],
-            CostProvider::LARAVEL_CLOUD => [
+            CostProviderKey::LaravelCloud->value => [
                 'application' => 'external_application_id',
                 'environment' => 'external_environment_id',
                 'resource_type' => 'resource_type',

@@ -2,58 +2,69 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\CostProvider;
+use App\Enums\CostProviderKey;
+use App\Models\CostSyncRun;
 use Carbon\CarbonImmutable;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
-use Filament\Widgets\TableWidget;
-use Illuminate\Database\Eloquent\Builder;
+use Filament\Widgets\Widget;
 
-class CostSyncStatusWidget extends TableWidget
+class CostSyncStatusWidget extends Widget
 {
+    protected string $view = 'filament.widgets.cost-sync-status-widget';
+
     protected ?string $pollingInterval = '30s';
 
-    public function table(Table $table): Table
+    protected function getPollingInterval(): ?string
     {
-        return $table
-            ->query($this->latestRunsQuery())
-            ->heading('Sync Status')
-            ->columns([
-                TextColumn::make('key')->label('provider')->badge(),
-                TextColumn::make('latestSyncRun.status')
-                    ->label('status')
-                    ->badge(),
-                TextColumn::make('sync_freshness')
-                    ->label('freshness')
-                    ->state(fn(CostProvider $record): string => $this->freshness($record))
-                    ->badge()
-                    ->color(fn(string $state): string => match ($state) {
-                        'fresh' => 'success',
-                        'stale' => 'warning',
-                        'danger' => 'danger',
-                        default => 'gray',
-                    }),
-                TextColumn::make('last_synced_at')->dateTime(),
-                TextColumn::make('latestSyncRun.records_fetched')->label('fetched')->numeric(),
-                TextColumn::make('latestSyncRun.records_saved')->label('saved')->numeric(),
-                TextColumn::make('latestSyncRun.error_message')->label('error')->limit(80),
-            ]);
+        return $this->pollingInterval;
     }
 
-    private function latestRunsQuery(): Builder
+    /** @return list<array<string, mixed>> */
+    public function getRows(): array
     {
-        return CostProvider::query()
-            ->with('latestSyncRun')
-            ->orderBy('key');
+        $latestRuns = CostSyncRun::query()
+            ->whereIn('id', CostSyncRun::query()
+                ->selectRaw('max(id)')
+                ->groupBy('provider_key'))
+            ->get()
+            ->keyBy('provider_key');
+
+        $latestSuccessfulRuns = CostSyncRun::query()
+            ->where('status', CostSyncRun::SUCCEEDED)
+            ->whereIn('id', CostSyncRun::query()
+                ->selectRaw('max(id)')
+                ->where('status', CostSyncRun::SUCCEEDED)
+                ->groupBy('provider_key'))
+            ->get()
+            ->keyBy('provider_key');
+
+        return array_map(function (CostProviderKey $provider) use ($latestRuns, $latestSuccessfulRuns): array {
+            $latestRun = $latestRuns->get($provider->value);
+            $latestSuccessfulRun = $latestSuccessfulRuns->get($provider->value);
+            $lastSyncedAt = $latestSuccessfulRun instanceof CostSyncRun ? $latestSuccessfulRun->finished_at : null;
+            $freshness = $this->freshness($lastSyncedAt);
+
+            return [
+                'provider' => $provider->value,
+                'provider_label' => $provider->label(),
+                'enabled' => (bool) config($provider->enabledConfigPath(), false),
+                'status' => $latestRun instanceof CostSyncRun ? $latestRun->status : 'never',
+                'freshness' => $freshness,
+                'freshness_color' => $this->freshnessColor($freshness),
+                'last_synced_at' => $lastSyncedAt,
+                'records_fetched' => $latestRun instanceof CostSyncRun ? $latestRun->records_fetched : 0,
+                'records_saved' => $latestRun instanceof CostSyncRun ? $latestRun->records_saved : 0,
+                'error_message' => $latestRun instanceof CostSyncRun ? $latestRun->error_message : null,
+            ];
+        }, CostProviderKey::syncable());
     }
 
-    private function freshness(CostProvider $provider): string
+    private function freshness(mixed $lastSyncedAt): string
     {
-        if ($provider->last_synced_at === null) {
+        if ($lastSyncedAt === null) {
             return 'never';
         }
 
-        $hours = CarbonImmutable::parse((string) $provider->last_synced_at)->diffInHours(now());
+        $hours = CarbonImmutable::parse((string) $lastSyncedAt)->diffInHours(now());
 
         if ($hours >= 24) {
             return 'danger';
@@ -64,5 +75,15 @@ class CostSyncStatusWidget extends TableWidget
         }
 
         return 'fresh';
+    }
+
+    private function freshnessColor(string $freshness): string
+    {
+        return match ($freshness) {
+            'fresh' => 'success',
+            'stale' => 'warning',
+            'danger' => 'danger',
+            default => 'gray',
+        };
     }
 }

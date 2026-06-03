@@ -3,11 +3,11 @@
 namespace App\Console\Commands;
 
 use App\Enums\CollectorRunStatus;
+use App\Enums\CostProviderKey;
 use App\Meterpipe\Collectors\Concerns\BuildsCollectorRows;
 use App\Models\AnalyticsEvent;
 use App\Models\CollectorRun;
 use App\Models\CostDailySummary;
-use App\Models\CostProvider;
 use App\Models\MetricSnapshot;
 use App\Models\PipeApp;
 use Carbon\CarbonImmutable;
@@ -36,8 +36,8 @@ class MeterpipeDemoSeedCommand extends Command
 
         for ($daysAgo = 29; $daysAgo >= 0; $daysAgo--) {
             $date = $now->subDays($daysAgo)->startOfDay();
-            $this->seedProviderCost(CostProvider::OPENAI, 'line_item', 'completions', 4.5 + ($daysAgo % 5), $date);
-            $this->seedProviderCost(CostProvider::LARAVEL_CLOUD, 'resource_type', 'compute', 7.0 + ($daysAgo % 3), $date);
+            $this->seedProviderCost(CostProviderKey::OpenAi->value, 'line_item', 'completions', 4.5 + ($daysAgo % 5), $date);
+            $this->seedProviderCost(CostProviderKey::LaravelCloud->value, 'resource_type', 'compute', 7.0 + ($daysAgo % 3), $date);
 
             foreach (['digestpipe', 'radiopipe', 'voicepipe', 'playpipe'] as $index => $key) {
                 $app = $apps->get($key);
@@ -48,7 +48,7 @@ class MeterpipeDemoSeedCommand extends Command
 
                 $dimensions = ['demo' => true, 'app' => $key];
                 $summaryKey = $this->dimensionsHash($dimensions + [
-                    'provider_key' => CostProvider::ALL,
+                    'provider_key' => CostProviderKey::All->value,
                     'date' => $date->toDateString(),
                 ]);
 
@@ -58,7 +58,7 @@ class MeterpipeDemoSeedCommand extends Command
                     ],
                     [
                         'summary_date' => $date,
-                        'provider_key' => CostProvider::ALL,
+                        'provider_key' => CostProviderKey::All->value,
                         'pipe_app_key' => $app->key,
                         'dimension_type' => 'pipe_app',
                         'dimension_key' => $app->key,

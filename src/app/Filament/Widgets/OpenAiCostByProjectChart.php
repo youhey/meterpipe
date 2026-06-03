@@ -2,7 +2,7 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\CostProvider;
+use App\Enums\CostProviderKey;
 use App\Services\CostSummaryService;
 use Filament\Widgets\ChartWidget;
 
@@ -14,7 +14,7 @@ class OpenAiCostByProjectChart extends ChartWidget
 
     protected function getData(): array
     {
-        $data = app(CostSummaryService::class)->dimensionBreakdown(CostProvider::OPENAI, 'project');
+        $data = app(CostSummaryService::class)->dimensionBreakdown(CostProviderKey::OpenAi->value, 'project');
 
         return [
             'datasets' => [['label' => 'OpenAI project', 'data' => $data['values']]],

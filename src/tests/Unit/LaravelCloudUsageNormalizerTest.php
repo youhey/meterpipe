@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Models\CostProvider;
+use App\Enums\CostProviderKey;
 use App\Services\CostProviders\LaravelCloud\LaravelCloudUsageNormalizer;
 use Carbon\CarbonImmutable;
 use Tests\TestCase;
@@ -36,7 +36,7 @@ class LaravelCloudUsageNormalizerTest extends TestCase
         ], CarbonImmutable::parse('2026-06-01'), CarbonImmutable::parse('2026-06-02'));
 
         $this->assertGreaterThanOrEqual(4, count($records));
-        $this->assertSame(CostProvider::LARAVEL_CLOUD, $records[0]['provider_key']);
+        $this->assertSame(CostProviderKey::LaravelCloud->value, $records[0]['provider_key']);
         $this->assertContains('app_digest', array_column($records, 'external_application_id'));
         $this->assertContains('database', array_column($records, 'resource_type'));
     }

@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
+use App\Enums\CostProviderKey;
 use App\Models\CostDailySummary;
-use App\Models\CostProvider;
 use App\Services\CostSummaryService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,7 +19,7 @@ class CostSummaryServiceTest extends TestCase
 
         CostDailySummary::query()->create([
             'summary_date' => '2026-06-01',
-            'provider_key' => CostProvider::OPENAI,
+            'provider_key' => CostProviderKey::OpenAi->value,
             'dimension_type' => null,
             'amount' => 10,
             'currency' => 'usd',
@@ -30,7 +30,7 @@ class CostSummaryServiceTest extends TestCase
 
         CostDailySummary::query()->create([
             'summary_date' => '2026-06-10',
-            'provider_key' => CostProvider::LARAVEL_CLOUD,
+            'provider_key' => CostProviderKey::LaravelCloud->value,
             'dimension_type' => null,
             'amount' => 5,
             'currency' => 'usd',
@@ -41,7 +41,7 @@ class CostSummaryServiceTest extends TestCase
 
         CostDailySummary::query()->create([
             'summary_date' => '2026-06-01',
-            'provider_key' => CostProvider::ALL,
+            'provider_key' => CostProviderKey::All->value,
             'dimension_type' => null,
             'amount' => 10,
             'currency' => 'usd',
@@ -52,7 +52,7 @@ class CostSummaryServiceTest extends TestCase
 
         CostDailySummary::query()->create([
             'summary_date' => '2026-06-10',
-            'provider_key' => CostProvider::ALL,
+            'provider_key' => CostProviderKey::All->value,
             'dimension_type' => null,
             'amount' => 5,
             'currency' => 'usd',

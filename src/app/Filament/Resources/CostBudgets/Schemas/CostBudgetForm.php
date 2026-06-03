@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\CostBudgets\Schemas;
 
-use App\Models\CostProvider;
+use App\Enums\CostProviderKey;
 use App\Models\PipeApp;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -20,8 +20,8 @@ class CostBudgetForm
                     ->schema([
                         Select::make('provider_key')
                             ->options([
-                                CostProvider::OPENAI => 'openai',
-                                CostProvider::LARAVEL_CLOUD => 'laravel_cloud',
+                                CostProviderKey::OpenAi->value => 'openai',
+                                CostProviderKey::LaravelCloud->value => 'laravel_cloud',
                             ])
                             ->placeholder('all'),
                         Select::make('pipe_app_key')

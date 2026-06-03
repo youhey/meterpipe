@@ -2,7 +2,7 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\CostProvider;
+use App\Enums\CostProviderKey;
 use App\Services\CostSummaryService;
 use Filament\Widgets\ChartWidget;
 
@@ -14,7 +14,7 @@ class LaravelCloudCostByResourceTypeChart extends ChartWidget
 
     protected function getData(): array
     {
-        $data = app(CostSummaryService::class)->dimensionBreakdown(CostProvider::LARAVEL_CLOUD, 'resource_type');
+        $data = app(CostSummaryService::class)->dimensionBreakdown(CostProviderKey::LaravelCloud->value, 'resource_type');
 
         return [
             'datasets' => [['label' => 'Laravel Cloud resource type', 'data' => $data['values']]],

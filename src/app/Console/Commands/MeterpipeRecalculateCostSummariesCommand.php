@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\CostProvider;
+use App\Enums\CostProviderKey;
 use App\Services\Costs\CostSummaryRecalculator;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
@@ -20,7 +20,7 @@ class MeterpipeRecalculateCostSummariesCommand extends Command
     {
         $provider = (string) $this->option('provider');
 
-        if (! in_array($provider, [CostProvider::OPENAI, CostProvider::LARAVEL_CLOUD, CostProvider::ALL], true)) {
+        if (! in_array($provider, [CostProviderKey::OpenAi->value, CostProviderKey::LaravelCloud->value, CostProviderKey::All->value], true)) {
             $this->error('--provider は openai, laravel_cloud, all のいずれかを指定してください。');
 
             return self::FAILURE;

@@ -2,7 +2,7 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\CostProvider;
+use App\Enums\CostProviderKey;
 use App\Services\CostSummaryService;
 use Filament\Widgets\ChartWidget;
 
@@ -14,7 +14,7 @@ class LaravelCloudCostByApplicationChart extends ChartWidget
 
     protected function getData(): array
     {
-        $data = app(CostSummaryService::class)->dimensionBreakdown(CostProvider::LARAVEL_CLOUD, 'application');
+        $data = app(CostSummaryService::class)->dimensionBreakdown(CostProviderKey::LaravelCloud->value, 'application');
 
         return [
             'datasets' => [['label' => 'Laravel Cloud application', 'data' => $data['values']]],

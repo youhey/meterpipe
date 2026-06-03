@@ -2,7 +2,7 @@
 
 namespace App\Services\CostProviders\LaravelCloud;
 
-use App\Models\CostProvider;
+use App\Enums\CostProviderKey;
 use Carbon\CarbonImmutable;
 
 class LaravelCloudUsageNormalizer
@@ -179,7 +179,7 @@ class LaravelCloudUsageNormalizer
         array $rawPayload,
     ): array {
         $sourceRecordKey = implode(':', [
-            CostProvider::LARAVEL_CLOUD,
+            CostProviderKey::LaravelCloud->value,
             $bucketStart->timestamp,
             $bucketEnd->timestamp,
             $dimensionType,
@@ -191,7 +191,7 @@ class LaravelCloudUsageNormalizer
         ]);
 
         return [
-            'provider_key' => CostProvider::LARAVEL_CLOUD,
+            'provider_key' => CostProviderKey::LaravelCloud->value,
             'source_record_key' => $sourceRecordKey,
             'bucket_start' => $bucketStart,
             'bucket_end' => $bucketEnd,

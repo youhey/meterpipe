@@ -51,7 +51,7 @@ docker compose exec -T php-cli php artisan meterpipe:recalculate-cost-summaries 
 - `queued` のまま: queue worker が動いているか確認します。
 - `failed`: `/admin/cost-sync-runs` の `error_class` / `error_message` を確認します。secret は表示しない方針です。
 - `skipped`: provider が disabled、または同じ provider + period の同期が実行中です。
-- stale: `cost_providers.last_synced_at` が 3 時間以上古い場合は warning、24 時間以上古い場合は danger として扱います。
+- stale: `cost_sync_runs` の最新成功 run が 3 時間以上古い場合は warning、24 時間以上古い場合は danger として扱います。
 
 ## Data Refresh
 

@@ -2,8 +2,8 @@
 
 namespace App\Meterpipe\Collectors;
 
+use App\Enums\CostProviderKey;
 use App\Meterpipe\Collectors\Concerns\BuildsCollectorRows;
-use App\Models\CostProvider;
 
 final class FakeLaravelCloudCostCollector implements MetricCollector
 {
@@ -23,7 +23,7 @@ final class FakeLaravelCloudCostCollector implements MetricCollector
             $dimensions = ['environment' => 'production'];
             $rows[] = [
                 'summary_date' => $date,
-                'provider_key' => CostProvider::LARAVEL_CLOUD,
+                'provider_key' => CostProviderKey::LaravelCloud->value,
                 'pipe_app_key' => null,
                 'dimension_type' => 'resource_type',
                 'dimension_key' => $service,

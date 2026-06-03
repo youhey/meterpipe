@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\CostProvider;
+use App\Enums\CostProviderKey;
 use App\Models\CostSyncRun;
 use App\Services\Costs\CostSyncPeriod;
 use App\Services\Costs\CostSyncService;
@@ -31,9 +31,9 @@ class MeterpipeSyncCostsCommand extends Command
 
         $provider = (string) $this->option('provider');
         $providers = match ($provider) {
-            CostProvider::OPENAI => [CostProvider::OPENAI],
-            CostProvider::LARAVEL_CLOUD => [CostProvider::LARAVEL_CLOUD],
-            CostProvider::ALL => [CostProvider::OPENAI, CostProvider::LARAVEL_CLOUD],
+            CostProviderKey::OpenAi->value => [CostProviderKey::OpenAi->value],
+            CostProviderKey::LaravelCloud->value => [CostProviderKey::LaravelCloud->value],
+            CostProviderKey::All->value => [CostProviderKey::OpenAi->value, CostProviderKey::LaravelCloud->value],
             default => [],
         };
 
@@ -48,10 +48,10 @@ class MeterpipeSyncCostsCommand extends Command
         foreach ($providers as $providerKey) {
             try {
                 $run = match ($providerKey) {
-                    CostProvider::OPENAI => $this->option('sync')
+                    CostProviderKey::OpenAi->value => $this->option('sync')
                         ? $service->syncOpenAi($from, $to, 'manual', (bool) $this->option('force'))
                         : $service->queueOpenAi($from, $to, 'manual', (bool) $this->option('force')),
-                    CostProvider::LARAVEL_CLOUD => $this->option('sync')
+                    CostProviderKey::LaravelCloud->value => $this->option('sync')
                         ? $service->syncLaravelCloud($from, $to, 'manual', (bool) $this->option('force'))
                         : $service->queueLaravelCloud($from, $to, 'manual', (bool) $this->option('force')),
                 };

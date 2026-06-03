@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\CostDimensionMappings\Tables;
 
-use App\Models\CostProvider;
+use App\Enums\CostProviderKey;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -27,8 +27,8 @@ class CostDimensionMappingsTable
             ->filters([
                 SelectFilter::make('provider_key')
                     ->options([
-                        CostProvider::OPENAI => 'openai',
-                        CostProvider::LARAVEL_CLOUD => 'laravel_cloud',
+                        CostProviderKey::OpenAi->value => 'openai',
+                        CostProviderKey::LaravelCloud->value => 'laravel_cloud',
                     ]),
             ])
             ->recordActions([

@@ -15,6 +15,5 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(PipeAppSeeder::class);
-        $this->call(CostProviderSeeder::class);
     }
 }
