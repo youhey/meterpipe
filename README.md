@@ -154,8 +154,11 @@ Do not commit Google OAuth secrets, OpenAI Admin keys, Laravel Cloud API tokens,
 
 - [architecture](docs/architecture.md)
 - [env](docs/env.md)
+- [commands](docs/commands.md)
 - [collectors](docs/collectors.md)
+- [pipe apps](docs/pipe-apps.md)
 - [costs](docs/costs.md)
 - [metrics](docs/metrics.md)
+- [analytics events](docs/analytics-events.md)
 - [admin](docs/admin.md)
 - [operations](docs/operations.md)

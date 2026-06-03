@@ -3,26 +3,69 @@
 namespace App\Filament\Widgets;
 
 use App\Services\CostSummaryService;
+use Carbon\CarbonImmutable;
+use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Section;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\HtmlString;
 
 class CostOverviewStats extends StatsOverviewWidget
 {
     protected ?string $pollingInterval = '30s';
 
+    /** @var array<string, mixed>|null */
+    private ?array $summary = null;
+
+    public function getSectionContentComponent(): Component
+    {
+        return Section::make()
+            ->heading('Cost')
+            ->description($this->description())
+            ->schema($this->getCachedStats())
+            ->columns($this->getColumns())
+            ->contained(false)
+            ->gridContainer();
+    }
+
     protected function getStats(): array
     {
-        $summary = app(CostSummaryService::class)->monthlySummary();
+        $summary = $this->summary();
         $currency = strtoupper((string) $summary['currency']);
 
         return [
-            Stat::make('今月の総コスト', $this->money($summary['month_to_date'], $currency)),
-            Stat::make('今月の OpenAI コスト', $this->money($summary['openai_month_to_date'], $currency)),
-            Stat::make('今月の Laravel Cloud コスト', $this->money($summary['laravel_cloud_month_to_date'], $currency)),
-            Stat::make('昨日の総コスト', $this->money($summary['yesterday_cost'], $currency)),
-            Stat::make('月末予測', $this->money($summary['month_end_forecast'], $currency)),
-            Stat::make('最終同期日時', $summary['last_synced_at'] ?? '未同期'),
+            Stat::make('Total', $this->money($summary['month_to_date'], $currency)),
+            Stat::make('OpenAI', $this->money($summary['openai_month_to_date'], $currency)),
+            Stat::make('Laravel Cloud', $this->money($summary['laravel_cloud_month_to_date'], $currency)),
+            Stat::make('Yesterday', $this->money($summary['yesterday_cost'], $currency)),
+            Stat::make('Estimation', $this->money($summary['month_end_forecast'], $currency)),
         ];
+    }
+
+    /** @return array<string, mixed> */
+    private function summary(): array
+    {
+        return $this->summary ??= app(CostSummaryService::class)->monthlySummary();
+    }
+
+    private function description(): HtmlString
+    {
+        $summary = $this->summary();
+        $now = CarbonImmutable::now('UTC');
+        $period = sprintf(
+            '%d年%d月 (%s 〜 %s)',
+            $now->year,
+            $now->month,
+            $now->startOfMonth()->format('Y/m/d'),
+            $now->format('Y/m/d'),
+        );
+
+        $lastSyncedAt = $summary['last_synced_at'] ?? null;
+        $syncDescription = $lastSyncedAt === null
+            ? 'まだ同期データはありません。'
+            : CarbonImmutable::parse((string) $lastSyncedAt)->setTimezone('UTC')->format('Y/m/d H:i:s') . ' UTC に最終同期したデータです。';
+
+        return new HtmlString(e($period) . '<br>' . e($syncDescription));
     }
 
     private function money(mixed $amount, string $currency): string

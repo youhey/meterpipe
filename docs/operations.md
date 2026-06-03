@@ -1,5 +1,7 @@
 # Operations
 
+command の詳細な役割と option は [commands](commands.md) を参照してください。
+
 ## Collector
 
 ```bash
