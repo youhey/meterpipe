@@ -8,7 +8,7 @@ use Filament\Widgets\ChartWidget;
 
 class OpenAiCostByProjectChart extends ChartWidget
 {
-    protected ?string $heading = 'OpenAI project 別コスト';
+    protected ?string $heading = 'OpenAI: Projects';
 
     protected ?string $pollingInterval = '30s';
 

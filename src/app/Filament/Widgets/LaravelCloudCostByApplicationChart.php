@@ -8,7 +8,7 @@ use Filament\Widgets\ChartWidget;
 
 class LaravelCloudCostByApplicationChart extends ChartWidget
 {
-    protected ?string $heading = 'Laravel Cloud application 別コスト';
+    protected ?string $heading = 'Laravel Cloud: Applications';
 
     protected ?string $pollingInterval = '30s';
 

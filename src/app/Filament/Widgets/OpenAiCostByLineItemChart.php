@@ -8,7 +8,7 @@ use Filament\Widgets\ChartWidget;
 
 class OpenAiCostByLineItemChart extends ChartWidget
 {
-    protected ?string $heading = 'OpenAI line item 別コスト';
+    protected ?string $heading = 'OpenAI: Items';
 
     protected ?string $pollingInterval = '30s';
 

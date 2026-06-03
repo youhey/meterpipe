@@ -8,7 +8,7 @@ use Filament\Widgets\ChartWidget;
 
 class LaravelCloudCostByResourceTypeChart extends ChartWidget
 {
-    protected ?string $heading = 'Laravel Cloud resource type 別コスト';
+    protected ?string $heading = 'Laravel Cloud: Resources';
 
     protected ?string $pollingInterval = '30s';
 

@@ -11,6 +11,9 @@ class CostSyncStatusWidget extends Widget
 {
     protected string $view = 'filament.widgets.cost-sync-status-widget';
 
+    /** @var int|string|array<string, int|null> */
+    protected int|string|array $columnSpan = 'full';
+
     protected ?string $pollingInterval = '30s';
 
     protected function getPollingInterval(): ?string

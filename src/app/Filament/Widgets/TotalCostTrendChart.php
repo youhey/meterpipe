@@ -7,7 +7,7 @@ use Filament\Widgets\ChartWidget;
 
 class TotalCostTrendChart extends ChartWidget
 {
-    protected ?string $heading = '日別総コスト';
+    protected ?string $heading = 'Usage';
 
     protected ?string $pollingInterval = '30s';
 

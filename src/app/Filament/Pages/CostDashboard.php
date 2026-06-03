@@ -53,8 +53,8 @@ class CostDashboard extends Page
     protected function getHeaderWidgets(): array
     {
         return [
-            CostOverviewStats::class,
             CostSyncStatusWidget::class,
+            CostOverviewStats::class,
         ];
     }
 
@@ -63,10 +63,10 @@ class CostDashboard extends Page
         return [
             TotalCostTrendChart::class,
             ProviderCostTrendChart::class,
-            OpenAiCostByProjectChart::class,
-            OpenAiCostByLineItemChart::class,
             LaravelCloudCostByApplicationChart::class,
             LaravelCloudCostByResourceTypeChart::class,
+            OpenAiCostByProjectChart::class,
+            OpenAiCostByLineItemChart::class,
         ];
     }
 

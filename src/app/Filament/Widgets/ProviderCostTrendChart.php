@@ -7,7 +7,7 @@ use Filament\Widgets\ChartWidget;
 
 class ProviderCostTrendChart extends ChartWidget
 {
-    protected ?string $heading = 'Provider 別日別コスト';
+    protected ?string $heading = 'Provider';
 
     protected ?string $pollingInterval = '30s';
 
