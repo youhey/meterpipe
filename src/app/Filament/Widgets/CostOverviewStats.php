@@ -64,8 +64,22 @@ class CostOverviewStats extends StatsOverviewWidget
         $syncDescription = $lastSyncedAt === null
             ? 'まだ同期データはありません。'
             : CarbonImmutable::parse((string) $lastSyncedAt)->setTimezone('UTC')->format('Y/m/d H:i:s') . ' UTC に最終同期したデータです。';
+        $laravelCloudPeriod = $summary['laravel_cloud_billing_period'] ?? [];
+        $laravelCloudDescription = null;
 
-        return new HtmlString(e($period) . '<br>' . e($syncDescription));
+        if (is_array($laravelCloudPeriod) && is_string($laravelCloudPeriod['bucket_start'] ?? null) && is_string($laravelCloudPeriod['bucket_end'] ?? null)) {
+            $laravelCloudDescription = sprintf(
+                'Laravel Cloud は %s 〜 %s の請求期間データです。',
+                CarbonImmutable::parse($laravelCloudPeriod['bucket_start'])->format('Y/m/d'),
+                CarbonImmutable::parse($laravelCloudPeriod['bucket_end'])->format('Y/m/d'),
+            );
+        }
+
+        return new HtmlString(implode('<br>', array_filter([
+            e($period),
+            e($syncDescription),
+            $laravelCloudDescription === null ? null : e($laravelCloudDescription),
+        ])));
     }
 
     private function money(mixed $amount, string $currency): string

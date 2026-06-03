@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\CostProviderKey;
 use App\Models\CostDailySummary;
+use App\Models\CostRecord;
 use App\Models\CostSyncRun;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -15,16 +16,16 @@ class CostSummaryService
     public function monthlySummary(?CarbonImmutable $now = null): array
     {
         $now ??= CarbonImmutable::now();
-        $start = $now->startOfMonth()->toDateString();
+        $monthStart = $now->startOfMonth();
+        $monthEnd = $now->endOfMonth();
+        $start = $monthStart->toDateString();
         $today = $now->toDateString();
         $yesterday = $now->subDay()->toDateString();
+        $openAiMonthToDate = $this->providerMonthToDate(CostProviderKey::OpenAi->value, $start, $today);
+        $laravelCloudBillingPeriod = $this->laravelCloudBillingPeriodTotal($monthStart, $monthEnd);
+        $monthToDate = $openAiMonthToDate + $laravelCloudBillingPeriod['amount'];
 
-        $monthToDate = (float) CostDailySummary::query()
-            ->where('provider_key', CostProviderKey::All->value)
-            ->whereNull('dimension_type')
-            ->whereDate('summary_date', '>=', $start)
-            ->whereDate('summary_date', '<=', $today)
-            ->sum('amount');
+        $openAiForecast = $openAiMonthToDate / max(1, $now->day) * $now->daysInMonth;
 
         $yesterdayCost = (float) CostDailySummary::query()
             ->where('provider_key', CostProviderKey::All->value)
@@ -32,17 +33,15 @@ class CostSummaryService
             ->whereDate('summary_date', $yesterday)
             ->sum('amount');
 
-        $elapsedDays = max(1, $now->day);
-        $daysInMonth = $now->daysInMonth;
-
         return [
             'currency' => config('meterpipe.default_currency', 'usd'),
             'month_to_date' => $monthToDate,
-            'openai_month_to_date' => $this->providerMonthToDate(CostProviderKey::OpenAi->value, $start, $today),
-            'laravel_cloud_month_to_date' => $this->providerMonthToDate(CostProviderKey::LaravelCloud->value, $start, $today),
+            'openai_month_to_date' => $openAiMonthToDate,
+            'laravel_cloud_month_to_date' => $laravelCloudBillingPeriod['amount'],
+            'laravel_cloud_billing_period' => $laravelCloudBillingPeriod,
             'yesterday_cost' => $yesterdayCost,
-            'month_end_forecast' => $monthToDate / $elapsedDays * $daysInMonth,
-            'provider_breakdown' => $this->providerBreakdown($start, $today),
+            'month_end_forecast' => $openAiForecast + $laravelCloudBillingPeriod['amount'],
+            'provider_breakdown' => $this->providerBreakdown($start, $today, $laravelCloudBillingPeriod['amount']),
             'app_breakdown' => $this->appBreakdown($start, $today),
             'last_synced_at' => CostSyncRun::query()
                 ->where('status', CostSyncRun::SUCCEEDED)
@@ -93,6 +92,11 @@ class CostSummaryService
     public function dimensionBreakdown(string $providerKey, string $dimensionType, ?CarbonImmutable $now = null): array
     {
         $now ??= CarbonImmutable::now();
+
+        if ($providerKey === CostProviderKey::LaravelCloud->value) {
+            return $this->laravelCloudDimensionBreakdown($dimensionType, $now);
+        }
+
         $rows = DB::table('cost_daily_summaries')
             ->selectRaw('dimension_key, dimension_label, sum(amount) as total')
             ->where('provider_key', $providerKey)
@@ -136,18 +140,27 @@ class CostSummaryService
             ->sum('amount');
     }
 
-    /** @return Collection<int, CostDailySummary> */
-    private function providerBreakdown(string $start, string $today): Collection
+    /** @return Collection<int, \stdClass> */
+    private function providerBreakdown(string $start, string $today, float $laravelCloudAmount): Collection
     {
-        return CostDailySummary::query()
+        $rows = DB::table('cost_daily_summaries')
             ->selectRaw('provider_key, sum(amount) as total')
-            ->whereIn('provider_key', [CostProviderKey::OpenAi->value, CostProviderKey::LaravelCloud->value])
+            ->whereIn('provider_key', [CostProviderKey::OpenAi->value])
             ->whereNull('dimension_type')
             ->whereDate('summary_date', '>=', $start)
             ->whereDate('summary_date', '<=', $today)
             ->groupBy('provider_key')
             ->orderByDesc('total')
             ->get();
+
+        if ($laravelCloudAmount > 0.0) {
+            $row = new \stdClass();
+            $row->provider_key = CostProviderKey::LaravelCloud->value;
+            $row->total = $laravelCloudAmount;
+            $rows->push($row);
+        }
+
+        return $rows;
     }
 
     /** @return Collection<int, CostDailySummary> */
@@ -189,5 +202,63 @@ class CostSummaryService
     private function dateString(mixed $value): string
     {
         return CarbonImmutable::parse((string) $value)->toDateString();
+    }
+
+    /** @return array{amount: float, bucket_start: ?string, bucket_end: ?string} */
+    private function laravelCloudBillingPeriodTotal(CarbonImmutable $monthStart, CarbonImmutable $monthEnd): array
+    {
+        $record = CostRecord::query()
+            ->where('provider_key', CostProviderKey::LaravelCloud->value)
+            ->where('source_dimension_type', 'total')
+            ->whereDate('bucket_start', '<=', $monthEnd->toDateString())
+            ->whereDate('bucket_end', '>=', $monthStart->toDateString())
+            ->orderByDesc('bucket_start')
+            ->orderByDesc('synced_at')
+            ->first();
+
+        if (! $record instanceof CostRecord) {
+            return [
+                'amount' => 0.0,
+                'bucket_start' => null,
+                'bucket_end' => null,
+            ];
+        }
+
+        return [
+            'amount' => (float) $record->amount,
+            'bucket_start' => $this->dateString($record->bucket_start),
+            'bucket_end' => $this->dateString($record->bucket_end),
+        ];
+    }
+
+    /** @return array{labels: list<string>, values: list<float>} */
+    private function laravelCloudDimensionBreakdown(string $dimensionType, CarbonImmutable $now): array
+    {
+        $field = match ($dimensionType) {
+            'application' => 'external_application_id',
+            'resource_type' => 'resource_type',
+            'line_item' => 'line_item',
+            default => null,
+        };
+
+        if ($field === null) {
+            return ['labels' => [], 'values' => []];
+        }
+
+        $rows = DB::table('cost_records')
+            ->selectRaw($field . ' as dimension_key, sum(amount) as total')
+            ->where('provider_key', CostProviderKey::LaravelCloud->value)
+            ->whereNotNull($field)
+            ->whereDate('bucket_start', '<=', $now->endOfMonth()->toDateString())
+            ->whereDate('bucket_end', '>=', $now->startOfMonth()->toDateString())
+            ->groupBy($field)
+            ->orderByDesc('total')
+            ->limit(12)
+            ->get();
+
+        return [
+            'labels' => $rows->map(fn(object $record): string => (string) ($record->dimension_key ?? 'Unmapped'))->values()->all(),
+            'values' => $rows->map(fn(object $record): float => (float) $record->total)->values()->all(),
+        ];
     }
 }
