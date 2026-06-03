@@ -15,9 +15,16 @@ class OpenAiCostByProjectChart extends ChartWidget
     protected function getData(): array
     {
         $data = app(CostSummaryService::class)->dimensionBreakdown(CostProviderKey::OpenAi->value, 'project');
+        $colors = CostChartPalette::colors(count($data['values']));
 
         return [
-            'datasets' => [['label' => 'OpenAI project', 'data' => $data['values']]],
+            'datasets' => [[
+                'label' => 'OpenAI project',
+                'data' => $data['values'],
+                'backgroundColor' => CostChartPalette::translucentColors(count($data['values'])),
+                'borderColor' => $colors,
+                'borderWidth' => 2,
+            ]],
             'labels' => $data['labels'],
         ];
     }

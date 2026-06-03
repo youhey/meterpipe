@@ -17,8 +17,20 @@ class ProviderCostTrendChart extends ChartWidget
 
         return [
             'datasets' => [
-                ['label' => 'OpenAI', 'data' => $trend['openai']],
-                ['label' => 'Laravel Cloud', 'data' => $trend['laravel_cloud']],
+                [
+                    'label' => 'OpenAI',
+                    'data' => $trend['openai'],
+                    'backgroundColor' => CostChartPalette::translucentColor(0),
+                    'borderColor' => CostChartPalette::color(0),
+                    'borderWidth' => 2,
+                ],
+                [
+                    'label' => 'Laravel Cloud',
+                    'data' => $trend['laravel_cloud'],
+                    'backgroundColor' => CostChartPalette::translucentColor(1),
+                    'borderColor' => CostChartPalette::color(1),
+                    'borderWidth' => 2,
+                ],
             ],
             'labels' => $trend['labels'],
         ];

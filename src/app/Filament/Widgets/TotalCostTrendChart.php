@@ -19,6 +19,13 @@ class TotalCostTrendChart extends ChartWidget
             'datasets' => [[
                 'label' => 'Total',
                 'data' => $trend['values'],
+                'backgroundColor' => CostChartPalette::translucentColor(7),
+                'borderColor' => CostChartPalette::color(7),
+                'borderWidth' => 2,
+                'pointBackgroundColor' => CostChartPalette::color(7),
+                'pointBorderColor' => '#ffffff',
+                'pointRadius' => 3,
+                'tension' => 0.25,
             ]],
             'labels' => $trend['labels'],
         ];

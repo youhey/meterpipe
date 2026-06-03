@@ -15,9 +15,17 @@ class OpenAiCostByLineItemChart extends ChartWidget
     protected function getData(): array
     {
         $data = app(CostSummaryService::class)->dimensionBreakdown(CostProviderKey::OpenAi->value, 'line_item');
+        $colors = CostChartPalette::colors(count($data['values']));
 
         return [
-            'datasets' => [['label' => 'OpenAI line item', 'data' => $data['values']]],
+            'datasets' => [[
+                'label' => 'OpenAI line item',
+                'data' => $data['values'],
+                'backgroundColor' => $colors,
+                'borderColor' => '#ffffff',
+                'borderWidth' => 2,
+                'hoverBackgroundColor' => $colors,
+            ]],
             'labels' => $data['labels'],
         ];
     }

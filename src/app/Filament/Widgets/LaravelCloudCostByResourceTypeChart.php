@@ -15,9 +15,17 @@ class LaravelCloudCostByResourceTypeChart extends ChartWidget
     protected function getData(): array
     {
         $data = app(CostSummaryService::class)->dimensionBreakdown(CostProviderKey::LaravelCloud->value, 'resource_type');
+        $colors = CostChartPalette::colors(count($data['values']));
 
         return [
-            'datasets' => [['label' => 'Laravel Cloud resource type', 'data' => $data['values']]],
+            'datasets' => [[
+                'label' => 'Laravel Cloud resource type',
+                'data' => $data['values'],
+                'backgroundColor' => $colors,
+                'borderColor' => '#ffffff',
+                'borderWidth' => 2,
+                'hoverBackgroundColor' => $colors,
+            ]],
             'labels' => $data['labels'],
         ];
     }

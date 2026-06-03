@@ -15,9 +15,16 @@ class LaravelCloudCostByApplicationChart extends ChartWidget
     protected function getData(): array
     {
         $data = app(CostSummaryService::class)->dimensionBreakdown(CostProviderKey::LaravelCloud->value, 'application');
+        $colors = CostChartPalette::colors(count($data['values']));
 
         return [
-            'datasets' => [['label' => 'Laravel Cloud application', 'data' => $data['values']]],
+            'datasets' => [[
+                'label' => 'Laravel Cloud application',
+                'data' => $data['values'],
+                'backgroundColor' => CostChartPalette::translucentColors(count($data['values'])),
+                'borderColor' => $colors,
+                'borderWidth' => 2,
+            ]],
             'labels' => $data['labels'],
         ];
     }
