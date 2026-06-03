@@ -10,8 +10,7 @@ class LaravelCloudUsageNormalizer
     /** @return list<array<string, mixed>> */
     public function normalize(array $payload, CarbonImmutable $from, CarbonImmutable $to): array
     {
-        $bucketStart = $from->utc()->startOfDay();
-        $bucketEnd = $to->utc()->endOfDay();
+        [$bucketStart, $bucketEnd] = $this->bucketPeriod($payload, $from, $to);
         $currency = strtolower((string) (data_get($payload, 'meta.currency') ?? data_get($payload, 'currency') ?? data_get($payload, 'data.currency') ?? config('meterpipe.default_currency', 'usd')));
         $records = [];
 
@@ -339,6 +338,28 @@ class LaravelCloudUsageNormalizer
         };
     }
 
+    /** @return array{0: CarbonImmutable, 1: CarbonImmutable} */
+    private function bucketPeriod(array $payload, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        $period = data_get($payload, 'meta.period');
+        $availablePeriods = data_get($payload, 'meta.available_periods');
+
+        if (is_numeric($period) && is_array($availablePeriods)) {
+            $bounds = $availablePeriods[(int) $period] ?? null;
+
+            if (is_array($bounds)) {
+                $periodFrom = $this->date(data_get($bounds, 'from'))?->startOfDay();
+                $periodTo = $this->date(data_get($bounds, 'to'))?->endOfDay();
+
+                if ($periodFrom instanceof CarbonImmutable && $periodTo instanceof CarbonImmutable) {
+                    return [$periodFrom, $periodTo];
+                }
+            }
+        }
+
+        return [$from->utc()->startOfDay(), $to->utc()->endOfDay()];
+    }
+
     private function amount(mixed $row): ?string
     {
         if (! is_array($row)) {
@@ -410,5 +431,14 @@ class LaravelCloudUsageNormalizer
         $unit = data_get($row, 'unit') ?? data_get($row, 'usage_unit');
 
         return is_scalar($unit) && (string) $unit !== '' ? (string) $unit : null;
+    }
+
+    private function date(mixed $value): ?CarbonImmutable
+    {
+        if (! is_scalar($value) || (string) $value === '') {
+            return null;
+        }
+
+        return CarbonImmutable::parse((string) $value, 'UTC');
     }
 }

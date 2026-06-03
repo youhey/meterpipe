@@ -50,11 +50,17 @@ class LaravelCloudUsageNormalizerTest extends TestCase
             'meta' => [
                 'currency' => 'USD',
                 'period' => 0,
+                'available_periods' => [
+                    ['from' => '2026-06-01', 'to' => '2026-06-30'],
+                    ['from' => '2026-05-01', 'to' => '2026-05-31'],
+                    ['from' => '2026-04-01', 'to' => '2026-04-30'],
+                ],
             ],
-        ], CarbonImmutable::parse('2026-06-01'), CarbonImmutable::parse('2026-06-02'));
+        ], CarbonImmutable::parse('2026-05-05'), CarbonImmutable::parse('2026-06-03'));
 
         $this->assertGreaterThanOrEqual(4, count($records));
         $this->assertSame(CostProviderKey::LaravelCloud->value, $records[0]['provider_key']);
+        $this->assertSame('2026-06-01', $records[0]['bucket_date']);
         $this->assertSame('total', $records[0]['source_dimension_type']);
         $this->assertSame('20.50000000', $records[0]['amount']);
         $this->assertContains('app_digest', array_column($records, 'external_application_id'));

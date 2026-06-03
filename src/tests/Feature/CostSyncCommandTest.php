@@ -108,7 +108,15 @@ class CostSyncCommandTest extends TestCase
                         ]],
                     ],
                 ],
-                'meta' => ['currency' => 'USD', 'period' => 0],
+                'meta' => [
+                    'currency' => 'USD',
+                    'period' => 0,
+                    'available_periods' => [
+                        ['from' => '2026-06-01', 'to' => '2026-06-30'],
+                        ['from' => '2026-05-01', 'to' => '2026-05-31'],
+                        ['from' => '2026-04-01', 'to' => '2026-04-30'],
+                    ],
+                ],
             ]),
         ]);
 
@@ -126,11 +134,43 @@ class CostSyncCommandTest extends TestCase
             'provider_key' => CostProviderKey::LaravelCloud->value,
             'status' => CostSyncRun::SUCCEEDED,
         ]);
-        $this->assertDatabaseHas('cost_daily_summaries', [
-            'provider_key' => CostProviderKey::LaravelCloud->value,
-            'dimension_type' => null,
-            'amount' => '14.50000000',
-        ]);
+        $this->assertDailySummary(CostProviderKey::LaravelCloud->value, '2026-06-01', null, 14.5);
+    }
+
+    public function test_sync_laravel_cloud_costs_fetches_each_overlapping_billing_period(): void
+    {
+        Config::set('meterpipe.laravel_cloud_api_token', 'test-cloud-token');
+        Config::set(CostProviderKey::LaravelCloud->enabledConfigPath(), true);
+
+        Http::fake(function (Request $request) {
+            $query = $this->queryParams($request);
+            $period = (int) ($query['period'] ?? 0);
+
+            return Http::response([
+                'data' => [
+                    'summary' => ['current_spend_cents' => $period === 0 ? 540 : 320],
+                ],
+                'meta' => [
+                    'currency' => 'USD',
+                    'period' => $period,
+                    'available_periods' => [
+                        ['from' => '2026-06-01', 'to' => '2026-06-30'],
+                        ['from' => '2026-05-01', 'to' => '2026-05-31'],
+                        ['from' => '2026-04-01', 'to' => '2026-04-30'],
+                    ],
+                ],
+            ]);
+        });
+
+        $this->artisan('meterpipe:sync-laravel-cloud-costs --from=2026-05-20 --to=2026-06-03 --sync')
+            ->assertSuccessful();
+
+        Http::assertSentCount(2);
+        Http::assertSent(fn(Request $request): bool => ($this->queryParams($request)['period'] ?? null) === '0');
+        Http::assertSent(fn(Request $request): bool => ($this->queryParams($request)['period'] ?? null) === '1');
+
+        $this->assertDailySummary(CostProviderKey::LaravelCloud->value, '2026-06-01', null, 5.4);
+        $this->assertDailySummary(CostProviderKey::LaravelCloud->value, '2026-05-01', null, 3.2);
     }
 
     public function test_sync_failure_is_recorded(): void
@@ -264,6 +304,18 @@ class CostSyncCommandTest extends TestCase
             'label' => 'Project',
             'enabled' => true,
         ]);
+    }
+
+    private function assertDailySummary(string $providerKey, string $summaryDate, ?string $dimensionType, float $amount): void
+    {
+        $summary = CostDailySummary::query()
+            ->where('provider_key', $providerKey)
+            ->whereDate('summary_date', $summaryDate)
+            ->where('dimension_type', $dimensionType)
+            ->first();
+
+        $this->assertNotNull($summary);
+        $this->assertSame($amount, (float) $summary->amount);
     }
 
     /** @return array<string, mixed> */

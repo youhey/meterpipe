@@ -22,9 +22,9 @@ Laravel Cloud:
 - resource type cost
 - add-on cost
 
-Laravel Cloud Usage API は `GET /api/usage` を使い、`period` query で billing period を指定します。API response の金額は `current_spend_cents`、`total_cost_cents`、`total_cents` など cents 単位の値として返るため、normalizer で decimal currency amount に変換します。
+Laravel Cloud Usage API は `GET /api/usage` を使い、`period` query で billing period を指定します。meterpipe は `period=0`, `period=1`, `period=2` を同期対象にし、指定された `from` / `to` と重なる billing period をそれぞれ取得します。API response の金額は `current_spend_cents`、`total_cost_cents`、`total_cents` など cents 単位の値として返るため、normalizer で decimal currency amount に変換します。
 
-Laravel Cloud Usage API は billing period ベースです。meterpipe の `from` / `to` は sync run と再集計対象期間として保持しますが、Laravel Cloud API へは対象月から推定した `period` offset を送ります。
+Laravel Cloud Usage API は billing period ベースです。保存時の `bucket_date` / `bucket_end` はレスポンスの `meta.period` と `meta.available_periods` にある対象 billing period の `from` / `to` から決定します。`period=0..2` に含まれない期間の請求は同期対象外です。
 
 ## Schema
 

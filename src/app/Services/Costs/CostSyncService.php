@@ -111,9 +111,13 @@ class CostSyncService
             }
 
             return $this->executeRun($run, $from, $to, function () use ($from, $to): array {
-                $payload = $this->laravelCloudClient->fetchUsage($from, $to);
+                $records = [];
 
-                return $this->laravelCloudNormalizer->normalize($payload, $from, $to);
+                foreach ($this->laravelCloudClient->fetchUsagePeriods($from, $to) as $payload) {
+                    $records = array_merge($records, $this->laravelCloudNormalizer->normalize($payload, $from, $to));
+                }
+
+                return $records;
             });
         });
     }
@@ -155,7 +159,7 @@ class CostSyncService
         try {
             $records = $this->applyDimensionMappings($fetch());
             $saved = $this->upsertRecords($records);
-            $this->recalculator->recalculate($from, $to);
+            $this->recalculateRecords($records, $from, $to);
 
             $run->update([
                 'status' => CostSyncRun::SUCCEEDED,
@@ -175,6 +179,30 @@ class CostSyncService
 
             throw $throwable;
         }
+    }
+
+    /** @param list<array<string, mixed>> $records */
+    private function recalculateRecords(array $records, CarbonImmutable $from, CarbonImmutable $to): void
+    {
+        $dates = array_values(array_filter(array_map(
+            fn(array $record): mixed => $record['bucket_date'] ?? null,
+            $records,
+        ), fn(mixed $date): bool => is_scalar($date) && (string) $date !== ''));
+
+        if ($dates === []) {
+            $this->recalculator->recalculate($from, $to);
+
+            return;
+        }
+
+        $dateStrings = array_map(fn(mixed $date): string => (string) $date, $dates);
+
+        sort($dateStrings);
+
+        $this->recalculator->recalculate(
+            CarbonImmutable::parse($dateStrings[0], 'UTC')->startOfDay(),
+            CarbonImmutable::parse($dateStrings[array_key_last($dateStrings)], 'UTC')->endOfDay(),
+        );
     }
 
     private function providerEnabled(string $providerKey, bool $force): bool
